@@ -71,12 +71,25 @@ impl UnderstoryBoxStyleResolver {
 
         // Reserve stable tags for known widget types.
         const BUTTON: TypeTag = TypeTag(1);
-        resolver
-            .type_tags
-            .lock()
-            .expect("poisoned TypeTagState lock")
-            .known
-            .insert(TypeId::of::<crate::widgets::Button>(), BUTTON);
+        const CHECKBOX: TypeTag = TypeTag(2);
+        const SWITCH: TypeTag = TypeTag(3);
+        const TEXT_INPUT: TypeTag = TypeTag(4);
+        const BADGE: TypeTag = TypeTag(5);
+        {
+            let mut type_tags = resolver
+                .type_tags
+                .lock()
+                .expect("poisoned TypeTagState lock");
+            type_tags.known.extend([
+                (TypeId::of::<crate::widgets::Button>(), BUTTON),
+                (TypeId::of::<crate::widgets::Checkbox>(), CHECKBOX),
+                (TypeId::of::<crate::widgets::Switch>(), SWITCH),
+                (TypeId::of::<crate::widgets::TextInput>(), TEXT_INPUT),
+                (TypeId::of::<crate::widgets::Badge>(), BADGE),
+            ]);
+            // Ensure dynamically allocated tags don't collide with reserved ones.
+            type_tags.next = 6;
+        }
 
         const HOVER: PseudoClassId = PseudoClassId(1);
         const ACTIVE: PseudoClassId = PseudoClassId(2);
@@ -89,10 +102,22 @@ impl UnderstoryBoxStyleResolver {
                 Background::Color(crate::theme::ZYNC_700),
             )
             .build();
+        let switch_active_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ZYNC_600),
+            )
+            .build();
         let disabled_bg = StyleBuilder::new()
             .set(
                 resolver.background,
                 Background::Color(crate::peniko::Color::BLACK),
+            )
+            .build();
+        let badge_disabled_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ZYNC_800),
             )
             .build();
         let hover_border = StyleBuilder::new()
@@ -113,13 +138,14 @@ impl UnderstoryBoxStyleResolver {
             .build();
 
         let sheet = StyleSheetBuilder::new()
+            // Button
             .rule(
                 Selector {
                     type_tag: Some(BUTTON),
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([ACTIVE]),
                 },
-                active_bg,
+                active_bg.clone(),
             )
             .rule(
                 Selector {
@@ -127,7 +153,7 @@ impl UnderstoryBoxStyleResolver {
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([DISABLED]),
                 },
-                disabled_bg,
+                disabled_bg.clone(),
             )
             .rule(
                 Selector {
@@ -135,7 +161,7 @@ impl UnderstoryBoxStyleResolver {
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([HOVER]),
                 },
-                hover_border,
+                hover_border.clone(),
             )
             .rule(
                 Selector {
@@ -143,7 +169,91 @@ impl UnderstoryBoxStyleResolver {
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([FOCUS]),
                 },
+                focus_border.clone(),
+            )
+            // Checkbox
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([ACTIVE]),
+                },
+                active_bg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                disabled_bg.clone(),
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([HOVER]),
+                },
+                hover_border.clone(),
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([FOCUS]),
+                },
+                focus_border.clone(),
+            )
+            // Switch
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([ACTIVE]),
+                },
+                switch_active_bg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                disabled_bg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([HOVER]),
+                },
+                hover_border,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([FOCUS]),
+                },
+                focus_border.clone(),
+            )
+            // TextInput
+            .rule(
+                Selector {
+                    type_tag: Some(TEXT_INPUT),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([FOCUS]),
+                },
                 focus_border,
+            )
+            // Badge
+            .rule(
+                Selector {
+                    type_tag: Some(BADGE),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                badge_disabled_bg,
             )
             .build();
 
