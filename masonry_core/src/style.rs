@@ -184,7 +184,7 @@ pub struct BoxPaintStyle<'a> {
 /// Masonry Core does not include a style system, but it can consult this resolver during painting.
 /// This enables CSS/Understory-style selectors and cascades to drive visuals without encoding
 /// widget-specific "state properties" into the core.
-pub trait BoxStyleResolver {
+pub trait StyleResolver {
     /// Resolves pseudo/class-driven box paint overrides for a widget.
     ///
     /// - `widget_type` is the Rust [`TypeId`] for the widget type.
@@ -199,6 +199,9 @@ pub trait BoxStyleResolver {
         classes: &Arc<[ClassId]>,
     ) -> BoxPaintStyle<'_>;
 }
+
+#[deprecated(note = "renamed to `StyleResolver`")]
+pub use StyleResolver as BoxStyleResolver;
 
 #[cfg(test)]
 mod tests {

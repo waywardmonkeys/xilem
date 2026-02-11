@@ -38,7 +38,7 @@ use crate::passes::update::{
 };
 use crate::passes::{PassTracing, recurse_on_children};
 use crate::properties::Dimensions;
-use crate::style::BoxStyleResolver;
+use crate::style::{BoxStyleResolver, StyleResolver};
 
 /// We ensure that any valid initial IME area is sent to the platform by storing an invalid initial
 /// IME area as the `last_sent_ime_area`.
@@ -620,6 +620,20 @@ impl RenderRoot {
     ///
     /// Setting or changing the resolver requests a full redraw.
     pub fn set_box_style_resolver(&mut self, resolver: Option<Rc<dyn BoxStyleResolver>>) {
+        self.set_style_resolver(resolver);
+    }
+
+    /// Sets the embedder-provided style resolver.
+    ///
+    /// This is currently used for box painting (background/border), but is intended to grow to
+    /// additional style channels over time.
+    ///
+    /// When a resolver is installed, Masonry Core does not consult legacy "state variant"
+    /// properties (such as `DisabledBackground` or `HoveredBorderColor`) during `pre_paint`.
+    /// Embedders should express these stateful overrides via the resolver instead.
+    ///
+    /// Setting or changing the resolver requests a full redraw.
+    pub fn set_style_resolver(&mut self, resolver: Option<Rc<dyn StyleResolver>>) {
         self.global_state.box_style_resolver = resolver;
         self.request_render_all();
     }
