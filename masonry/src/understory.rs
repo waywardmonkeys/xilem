@@ -244,7 +244,7 @@ impl BoxStyleResolver for UnderstoryBoxStyleResolver {
         let classes = self.classes_for(classes);
 
         // Map Masonry's fixed pseudos to Understory pseudo IDs.
-        let mut pseudo_ids = [PseudoClassId(0); 4];
+        let mut pseudo_ids = [PseudoClassId(0); 5];
         let mut len = 0;
         if pseudos.contains(StylePseudos::HOVER) {
             pseudo_ids[len] = PseudoClassId(1);
@@ -258,8 +258,12 @@ impl BoxStyleResolver for UnderstoryBoxStyleResolver {
             pseudo_ids[len] = PseudoClassId(3);
             len += 1;
         }
-        if pseudos.contains(StylePseudos::DISABLED) {
+        if pseudos.contains(StylePseudos::FOCUS_WITHIN) {
             pseudo_ids[len] = PseudoClassId(4);
+            len += 1;
+        }
+        if pseudos.contains(StylePseudos::DISABLED) {
+            pseudo_ids[len] = PseudoClassId(5);
             len += 1;
         }
 
