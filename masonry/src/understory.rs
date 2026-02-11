@@ -28,6 +28,20 @@ pub struct UnderstoryBoxStyleResolver {
     cascade: StyleCascade,
     type_tags: Mutex<TypeTagState>,
     class_cache: Mutex<HashMap<Arc<[ClassId]>, Arc<[understory_style::ClassId]>>>,
+    computed_box_paint_cache: Mutex<HashMap<BoxPaintCacheKey, CachedBoxPaintStyle>>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct BoxPaintCacheKey {
+    widget_type: TypeId,
+    pseudos: StylePseudos,
+    classes: Arc<[ClassId]>,
+}
+
+#[derive(Clone, Debug)]
+struct CachedBoxPaintStyle {
+    background: Option<Arc<Background>>,
+    border_color: Option<BorderColor>,
 }
 
 #[derive(Debug, Default)]
@@ -61,6 +75,7 @@ impl UnderstoryBoxStyleResolver {
             cascade,
             type_tags: Mutex::new(TypeTagState::default()),
             class_cache: Mutex::new(HashMap::new()),
+            computed_box_paint_cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -245,6 +260,24 @@ impl StyleResolver for UnderstoryBoxStyleResolver {
         pseudos: StylePseudos,
         classes: &Arc<[ClassId]>,
     ) -> BoxPaintStyle<'_> {
+        let cache_key = BoxPaintCacheKey {
+            widget_type,
+            pseudos,
+            classes: Arc::clone(classes),
+        };
+        if let Some(cached) = self
+            .computed_box_paint_cache
+            .lock()
+            .expect("poisoned computed style cache lock")
+            .get(&cache_key)
+            .cloned()
+        {
+            return BoxPaintStyle {
+                background: cached.background.map(StyleValue::Shared),
+                border_color: cached.border_color.map(StyleValue::Owned),
+            };
+        }
+
         let type_tag = self.type_tag_for(widget_type);
         let classes = self.classes_for(classes);
 
@@ -278,15 +311,21 @@ impl StyleResolver for UnderstoryBoxStyleResolver {
             pseudos: &pseudo_ids[..len],
         };
 
+        let background_ref = self.cascade.get_value_ref(&inputs, self.background);
+        let border_color_ref = self.cascade.get_value_ref(&inputs, self.border_color);
+
+        let cached = CachedBoxPaintStyle {
+            background: background_ref.map(|v| Arc::new(v.clone())),
+            border_color: border_color_ref.copied(),
+        };
+        self.computed_box_paint_cache
+            .lock()
+            .expect("poisoned computed style cache lock")
+            .insert(cache_key, cached.clone());
+
         BoxPaintStyle {
-            background: self
-                .cascade
-                .get_value_ref(&inputs, self.background)
-                .map(StyleValue::Borrowed),
-            border_color: self
-                .cascade
-                .get_value_ref(&inputs, self.border_color)
-                .map(StyleValue::Borrowed),
+            background: cached.background.map(StyleValue::Shared),
+            border_color: cached.border_color.map(StyleValue::Owned),
         }
     }
 }
