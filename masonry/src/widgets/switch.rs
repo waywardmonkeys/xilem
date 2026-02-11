@@ -20,6 +20,7 @@ use crate::properties::{
     BorderWidth, CornerRadius, ThumbColor, ThumbRadius, ToggledBackground, TrackThickness,
 };
 use crate::util::{fill, stroke};
+use masonry_core::style::StylePseudos;
 
 /// A switch switch that can be turned on or off.
 ///
@@ -245,16 +246,18 @@ impl Widget for Switch {
             track_y + track_height,
         ) - ctx.border_box_translation();
 
-        // Determine track background color
-        let track_bg = if is_disabled || is_pressed {
-            p.background.as_ref()
-        } else if self.on
+        // Determine track background color.
+        //
+        // When a style resolver is present, `:toggled` is handled by the stylesheet.
+        let mut track_bg = p.background.as_ref();
+        if !ctx.has_style_resolver()
+            && !is_disabled
+            && !is_pressed
+            && self.on
             && let Some(tb) = props.get_defined::<ToggledBackground>()
         {
-            &tb.0
-        } else {
-            p.background.as_ref()
-        };
+            track_bg = &tb.0;
+        }
 
         // Paint track background
         let track_corner_radius = corner_radius.min(track_height / 2.0);
@@ -290,6 +293,14 @@ impl Widget for Switch {
             thumb_color
         };
         fill(scene, &thumb_circle, thumb_brush);
+    }
+
+    fn style_pseudos_extra(&self) -> StylePseudos {
+        if self.on {
+            StylePseudos::TOGGLED
+        } else {
+            StylePseudos::EMPTY
+        }
     }
 
     fn accessibility_role(&self) -> Role {

@@ -113,7 +113,6 @@ fn default_property_set_common() -> DefaultProperties {
     });
 
     properties.insert::<Switch, _>(Background::Color(ZYNC_700));
-    properties.insert::<Switch, _>(ToggledBackground(Background::Color(ACCENT_COLOR)));
     properties.insert::<Switch, _>(BorderColor { color: ZYNC_700 });
     properties.insert::<Switch, _>(ThumbColor(Color::WHITE));
     properties.insert::<Switch, _>(ThumbRadius(8.0));
@@ -212,6 +211,7 @@ pub fn default_property_set_legacy() -> DefaultProperties {
     properties.insert::<Switch, _>(DisabledBackground(Background::Color(Color::BLACK)));
     properties.insert::<Switch, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
     properties.insert::<Switch, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+    properties.insert::<Switch, _>(ToggledBackground(Background::Color(ACCENT_COLOR)));
 
     // TextInput
     properties.insert::<TextInput, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));

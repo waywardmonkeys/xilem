@@ -24,6 +24,7 @@ use crate::properties::{
 use crate::theme;
 use crate::util::stroke;
 use crate::widgets::Label;
+use masonry_core::style::StylePseudos;
 
 /// A checkbox that can be toggled.
 ///
@@ -353,6 +354,14 @@ impl Widget for Checkbox {
 
     fn accessibility_role(&self) -> Role {
         Role::CheckBox
+    }
+
+    fn style_pseudos_extra(&self) -> StylePseudos {
+        if self.checked {
+            StylePseudos::TOGGLED
+        } else {
+            StylePseudos::EMPTY
+        }
     }
 
     fn accessibility(
