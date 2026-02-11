@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use masonry::core::DefaultProperties;
 use masonry::peniko::Blob;
+use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set;
 use masonry_winit::app::{EventLoopBuilder, MasonryUserEvent, NewWindow, WindowId};
 use tokio::runtime::Runtime as TokioRuntime;
@@ -175,7 +176,13 @@ where
             .unwrap_or_else(default_property_set);
         let (driver, windows) =
             self.into_driver_and_windows(move |event| proxy.send_event(event).map_err(|err| err.0));
-        masonry_winit::app::run_with(event_loop, windows, driver, default_properties)
+        masonry_winit::app::run_with_box_style_resolver(
+            event_loop,
+            windows,
+            driver,
+            default_properties,
+            Some(default_box_style_resolver()),
+        )
     }
 
     /// Builds the [`MasonryDriver`] and the initial windows.
