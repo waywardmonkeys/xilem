@@ -146,7 +146,7 @@ impl Window {
         base_color: Color,
         size: PhysicalSize<u32>,
         scale_factor: f64,
-        box_style_resolver: Option<Rc<dyn StyleResolver>>,
+        style_resolver: Option<Rc<dyn StyleResolver>>,
     ) -> Self {
         let mut render_root = RenderRoot::new(
             root_widget,
@@ -162,7 +162,7 @@ impl Window {
                 test_font: None,
             },
         );
-        render_root.set_box_style_resolver(box_style_resolver);
+        render_root.set_style_resolver(style_resolver);
 
         Self {
             id: window_id,
@@ -222,7 +222,7 @@ pub struct MasonryState<'a> {
 
     signal_sender: Sender<(WindowId, RenderRootSignal)>,
     default_properties: Arc<DefaultProperties>,
-    box_style_resolver: Option<Rc<dyn StyleResolver>>,
+    style_resolver: Option<Rc<dyn StyleResolver>>,
     pub(crate) exit: bool,
     /// Windows that are scheduled to be created in the next resumed event.
     new_windows: Vec<NewWindow>,
@@ -278,41 +278,13 @@ pub fn run_with(
     app_driver: impl AppDriver + 'static,
     default_properties: DefaultProperties,
 ) -> Result<(), EventLoopError> {
-    run_with_box_style_resolver(
+    run_with_style_resolver(
         event_loop,
         new_windows,
         app_driver,
         default_properties,
         None,
     )
-}
-
-/// Runs the app with the provided event loop to completion, with an optional box style resolver.
-pub fn run_with_box_style_resolver(
-    // This is passed in mostly to allow configuring the Android app
-    event_loop: EventLoop,
-    new_windows: Vec<NewWindow>,
-    app_driver: impl AppDriver + 'static,
-    default_properties: DefaultProperties,
-    box_style_resolver: Option<Rc<dyn StyleResolver>>,
-) -> Result<(), EventLoopError> {
-    // If no tracing subscriber has been set before, we set our own. If one has
-    // already been set, we get an error which we swallow.
-    // By now, we're about to take control of the event loop. The user is unlikely
-    // to try to set their own subscriber once the event loop has started.
-    let _ = masonry_core::app::try_init_tracing();
-
-    let mut main_state = MainState {
-        masonry_state: MasonryState::new_with_box_style_resolver(
-            event_loop.create_proxy(),
-            new_windows,
-            default_properties,
-            box_style_resolver,
-        ),
-        app_driver: Box::new(app_driver),
-    };
-
-    event_loop.run_app(&mut main_state)
 }
 
 /// Runs the app with the provided event loop to completion, with an optional style resolver.
@@ -326,13 +298,23 @@ pub fn run_with_style_resolver(
     default_properties: DefaultProperties,
     style_resolver: Option<Rc<dyn StyleResolver>>,
 ) -> Result<(), EventLoopError> {
-    run_with_box_style_resolver(
-        event_loop,
-        new_windows,
-        app_driver,
-        default_properties,
-        style_resolver,
-    )
+    // If no tracing subscriber has been set before, we set our own. If one has
+    // already been set, we get an error which we swallow.
+    // By now, we're about to take control of the event loop. The user is unlikely
+    // to try to set their own subscriber once the event loop has started.
+    let _ = masonry_core::app::try_init_tracing();
+
+    let mut main_state = MainState {
+        masonry_state: MasonryState::new_with_style_resolver(
+            event_loop.create_proxy(),
+            new_windows,
+            default_properties,
+            style_resolver,
+        ),
+        app_driver: Box::new(app_driver),
+    };
+
+    event_loop.run_app(&mut main_state)
 }
 
 impl ApplicationHandler<MasonryUserEvent> for MainState<'_> {
@@ -410,15 +392,15 @@ impl MasonryState<'_> {
         new_windows: Vec<NewWindow>,
         default_properties: DefaultProperties,
     ) -> Self {
-        Self::new_with_box_style_resolver(event_loop_proxy, new_windows, default_properties, None)
+        Self::new_with_style_resolver(event_loop_proxy, new_windows, default_properties, None)
     }
 
-    /// Creates the Masonry application's composition root with an optional box style resolver.
-    pub fn new_with_box_style_resolver(
+    /// Creates the Masonry application's composition root with an optional style resolver.
+    pub fn new_with_style_resolver(
         event_loop_proxy: EventLoopProxy,
         new_windows: Vec<NewWindow>,
         default_properties: DefaultProperties,
-        box_style_resolver: Option<Rc<dyn StyleResolver>>,
+        style_resolver: Option<Rc<dyn StyleResolver>>,
     ) -> Self {
         let render_cx = RenderContext::new();
 
@@ -453,7 +435,7 @@ impl MasonryState<'_> {
 
             signal_sender,
             default_properties: Arc::new(default_properties),
-            box_style_resolver,
+            style_resolver,
             exit: false,
             new_windows,
             need_first_frame: Vec::new(),
@@ -601,7 +583,7 @@ impl MasonryState<'_> {
             new_window.base_color,
             size,
             scale_factor,
-            self.box_style_resolver.clone(),
+            self.style_resolver.clone(),
         );
 
         tracing::debug!(window_id = window.id.trace(), handle=?handle_id, "creating window");
