@@ -3,7 +3,7 @@
 
 //! Adapters for using Understory-style selector rules with Masonry.
 //!
-//! Masonry Core can consult an embedder-provided [`BoxStyleResolver`] during `pre_paint`.
+//! Masonry Core can consult an embedder-provided [`StyleResolver`] during `pre_paint`.
 //! This module provides a resolver implemented using [`understory_style`].
 
 use std::any::TypeId;
@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 
 use masonry_core::properties::{Background, BorderColor, ClassId};
-use masonry_core::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos, StyleValue};
+use masonry_core::style::{BoxPaintStyle, StylePseudos, StyleResolver, StyleValue};
 
 use understory_property::{PropertyMetadataBuilder, PropertyRegistry};
 use understory_style::{
@@ -238,7 +238,7 @@ impl UnderstoryBoxStyleResolver {
     }
 }
 
-impl BoxStyleResolver for UnderstoryBoxStyleResolver {
+impl StyleResolver for UnderstoryBoxStyleResolver {
     fn resolve_box_paint(
         &self,
         widget_type: TypeId,
@@ -297,7 +297,7 @@ mod tests {
     use std::sync::Arc;
 
     use masonry_core::properties::ClassId;
-    use masonry_core::style::{BoxStyleResolver as _, StylePseudos};
+    use masonry_core::style::{StylePseudos, StyleResolver as _};
 
     use super::UnderstoryBoxStyleResolver;
 
