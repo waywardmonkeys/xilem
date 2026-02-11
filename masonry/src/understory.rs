@@ -96,28 +96,20 @@ impl UnderstoryBoxStyleResolver {
         const FOCUS: PseudoClassId = PseudoClassId(3);
         const DISABLED: PseudoClassId = PseudoClassId(4);
 
+        // Shared pseudo styles (apply to all widget types).
+        //
+        // These are expressed as universal selectors (`type_tag: None`) so we don't need to
+        // duplicate the same :disabled/:hover/:focus rules for each widget type.
         let active_bg = StyleBuilder::new()
             .set(
                 resolver.background,
                 Background::Color(crate::theme::ZYNC_700),
             )
             .build();
-        let switch_active_bg = StyleBuilder::new()
-            .set(
-                resolver.background,
-                Background::Color(crate::theme::ZYNC_600),
-            )
-            .build();
         let disabled_bg = StyleBuilder::new()
             .set(
                 resolver.background,
                 Background::Color(crate::peniko::Color::BLACK),
-            )
-            .build();
-        let badge_disabled_bg = StyleBuilder::new()
-            .set(
-                resolver.background,
-                Background::Color(crate::theme::ZYNC_800),
             )
             .build();
         let hover_border = StyleBuilder::new()
@@ -137,11 +129,25 @@ impl UnderstoryBoxStyleResolver {
             )
             .build();
 
+        // Widget-specific overrides where the values differ from the shared pseudo styles.
+        let switch_active_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ZYNC_600),
+            )
+            .build();
+        let badge_disabled_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ZYNC_800),
+            )
+            .build();
+
         let sheet = StyleSheetBuilder::new()
-            // Button
+            // Universal pseudo rules.
             .rule(
                 Selector {
-                    type_tag: Some(BUTTON),
+                    type_tag: None,
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([ACTIVE]),
                 },
@@ -149,7 +155,7 @@ impl UnderstoryBoxStyleResolver {
             )
             .rule(
                 Selector {
-                    type_tag: Some(BUTTON),
+                    type_tag: None,
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([DISABLED]),
                 },
@@ -157,7 +163,7 @@ impl UnderstoryBoxStyleResolver {
             )
             .rule(
                 Selector {
-                    type_tag: Some(BUTTON),
+                    type_tag: None,
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([HOVER]),
                 },
@@ -165,46 +171,13 @@ impl UnderstoryBoxStyleResolver {
             )
             .rule(
                 Selector {
-                    type_tag: Some(BUTTON),
+                    type_tag: None,
                     required_classes: IdSet::default(),
                     required_pseudos: IdSet::from_ids([FOCUS]),
                 },
                 focus_border.clone(),
             )
-            // Checkbox
-            .rule(
-                Selector {
-                    type_tag: Some(CHECKBOX),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([ACTIVE]),
-                },
-                active_bg,
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(CHECKBOX),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([DISABLED]),
-                },
-                disabled_bg.clone(),
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(CHECKBOX),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([HOVER]),
-                },
-                hover_border.clone(),
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(CHECKBOX),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([FOCUS]),
-                },
-                focus_border.clone(),
-            )
-            // Switch
+            // Type-specific overrides.
             .rule(
                 Selector {
                     type_tag: Some(SWITCH),
@@ -213,40 +186,6 @@ impl UnderstoryBoxStyleResolver {
                 },
                 switch_active_bg,
             )
-            .rule(
-                Selector {
-                    type_tag: Some(SWITCH),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([DISABLED]),
-                },
-                disabled_bg,
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(SWITCH),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([HOVER]),
-                },
-                hover_border,
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(SWITCH),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([FOCUS]),
-                },
-                focus_border.clone(),
-            )
-            // TextInput
-            .rule(
-                Selector {
-                    type_tag: Some(TEXT_INPUT),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([FOCUS]),
-                },
-                focus_border,
-            )
-            // Badge
             .rule(
                 Selector {
                     type_tag: Some(BADGE),
@@ -340,5 +279,64 @@ impl BoxStyleResolver for UnderstoryBoxStyleResolver {
                 .get_value_ref(&inputs, self.border_color)
                 .copied(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::any::TypeId;
+    use std::sync::Arc;
+
+    use masonry_core::properties::ClassId;
+    use masonry_core::style::{BoxStyleResolver as _, StylePseudos};
+
+    use super::UnderstoryBoxStyleResolver;
+
+    #[test]
+    fn universal_disabled_background_applies() {
+        let resolver = UnderstoryBoxStyleResolver::new_default();
+        let classes: Arc<[ClassId]> = Arc::from([]);
+        let pseudos = StylePseudos::DISABLED;
+
+        let style =
+            resolver.resolve_box_paint(TypeId::of::<crate::widgets::Button>(), pseudos, &classes);
+        assert_eq!(
+            style.background,
+            Some(masonry_core::properties::Background::Color(
+                crate::peniko::Color::BLACK
+            ))
+        );
+    }
+
+    #[test]
+    fn type_specific_override_wins_over_universal() {
+        let resolver = UnderstoryBoxStyleResolver::new_default();
+        let classes: Arc<[ClassId]> = Arc::from([]);
+
+        // Switch :active uses a different background than the universal :active background.
+        let style = resolver.resolve_box_paint(
+            TypeId::of::<crate::widgets::Switch>(),
+            StylePseudos::ACTIVE,
+            &classes,
+        );
+        assert_eq!(
+            style.background,
+            Some(masonry_core::properties::Background::Color(
+                crate::theme::ZYNC_600
+            ))
+        );
+
+        // Badge :disabled uses a different background than the universal :disabled background.
+        let style = resolver.resolve_box_paint(
+            TypeId::of::<crate::widgets::Badge>(),
+            StylePseudos::DISABLED,
+            &classes,
+        );
+        assert_eq!(
+            style.background,
+            Some(masonry_core::properties::Background::Color(
+                crate::theme::ZYNC_800
+            ))
+        );
     }
 }
