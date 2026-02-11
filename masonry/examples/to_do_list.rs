@@ -14,7 +14,7 @@ use masonry::peniko::color::AlphaColor;
 use masonry::properties::Padding;
 use masonry::properties::types::CrossAxisAlignment;
 use masonry::theme::default_box_style_resolver;
-use masonry::theme::default_property_set;
+use masonry::theme::default_property_set_stylesheet;
 use masonry::widgets::{Button, ButtonPress, Flex, Label, Portal, TextAction, TextArea, TextInput};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
 use masonry_winit::winit::window::Window;
@@ -123,7 +123,7 @@ fn main() {
             .with_base_color(AlphaColor::from_rgb8(2, 6, 23)),
         ],
         driver,
-        default_property_set(),
+        default_property_set_stylesheet(),
         Some(default_box_style_resolver()),
     )
     .unwrap();
@@ -138,7 +138,8 @@ mod tests {
 
     #[test]
     fn screenshot_test() {
-        let mut harness = TestHarness::create(default_property_set(), make_widget_tree());
+        let mut harness =
+            TestHarness::create(masonry::theme::default_property_set(), make_widget_tree());
 
         assert_render_snapshot!(harness, "example_to_do_list_initial");
 

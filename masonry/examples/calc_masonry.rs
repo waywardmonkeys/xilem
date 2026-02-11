@@ -26,7 +26,7 @@ use masonry::properties::{
     ActiveBackground, Background, BorderColor, BorderWidth, Gap, HoveredBorderColor, Padding,
 };
 use masonry::theme::default_box_style_resolver;
-use masonry::theme::default_property_set;
+use masonry::theme::default_property_set_stylesheet;
 use masonry::widgets::{Button, ButtonPress, Flex, Grid, GridParams, Label};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
 use masonry_winit::winit::window::Window;
@@ -310,7 +310,7 @@ fn main() {
             build_calc().erased(),
         )],
         calc_state,
-        default_property_set(),
+        default_property_set_stylesheet(),
         Some(default_box_style_resolver()),
     )
     .unwrap();
@@ -326,7 +326,7 @@ mod tests {
     #[test]
     fn screenshot_test() {
         let mut harness = TestHarness::create_with(
-            default_property_set(),
+            masonry::theme::default_property_set(),
             build_calc(),
             TestHarnessParams::default(),
         );
