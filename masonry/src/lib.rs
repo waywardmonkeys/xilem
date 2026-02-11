@@ -213,6 +213,7 @@ mod tests;
 
 pub mod layers;
 pub mod properties;
+pub mod style;
 pub mod theme;
 pub mod widgets;
 
