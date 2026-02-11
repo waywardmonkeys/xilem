@@ -61,7 +61,14 @@ pub const DEFAULT_GAP: Length = Length::const_px(10.0);
 pub const DEFAULT_SPACER_LEN: Length = Length::const_px(10.0);
 pub const WIDGET_CONTROL_COMPONENT_PADDING: Length = Length::const_px(4.0);
 
-pub fn default_property_set() -> DefaultProperties {
+/// Default widget classes used by the stylesheet-oriented theme.
+///
+/// These are *theme-level* ids (not provided by Masonry Core).
+pub const CLASS_CONTROL: crate::properties::ClassId = crate::properties::ClassId(1);
+/// A widget that is "pressable" (responds to `:active` and has a shared disabled background).
+pub const CLASS_PRESSABLE: crate::properties::ClassId = crate::properties::ClassId(2);
+
+fn default_property_set_common() -> DefaultProperties {
     let mut properties = DefaultProperties::new();
 
     // Badge
@@ -69,7 +76,6 @@ pub fn default_property_set() -> DefaultProperties {
     properties.insert::<Badge, _>(CornerRadius { radius: 999. });
     properties.insert::<Badge, _>(BorderWidth { width: 0. });
     properties.insert::<Badge, _>(Background::Color(ACCENT_COLOR));
-    properties.insert::<Badge, _>(DisabledBackground(Background::Color(ZYNC_800)));
     properties.insert::<Badge, _>(BorderColor { color: ZYNC_700 });
 
     // Button
@@ -80,11 +86,7 @@ pub fn default_property_set() -> DefaultProperties {
     });
 
     properties.insert::<Button, _>(Background::Color(ZYNC_800));
-    properties.insert::<Button, _>(ActiveBackground(Background::Color(ZYNC_700)));
-    properties.insert::<Button, _>(DisabledBackground(Background::Color(Color::BLACK)));
     properties.insert::<Button, _>(BorderColor { color: ZYNC_700 });
-    properties.insert::<Button, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
-    properties.insert::<Button, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
 
     // Checkbox
     properties.insert::<Checkbox, _>(CornerRadius { radius: 4. });
@@ -93,11 +95,7 @@ pub fn default_property_set() -> DefaultProperties {
     });
 
     properties.insert::<Checkbox, _>(Background::Color(ZYNC_800));
-    properties.insert::<Checkbox, _>(ActiveBackground(Background::Color(ZYNC_700)));
-    properties.insert::<Checkbox, _>(DisabledBackground(Background::Color(Color::BLACK)));
     properties.insert::<Checkbox, _>(BorderColor { color: ZYNC_700 });
-    properties.insert::<Checkbox, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
-    properties.insert::<Checkbox, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
 
     properties.insert::<Checkbox, _>(CheckmarkStrokeWidth { width: 2.0 });
     properties.insert::<Checkbox, _>(CheckmarkColor { color: TEXT_COLOR });
@@ -115,12 +113,8 @@ pub fn default_property_set() -> DefaultProperties {
     });
 
     properties.insert::<Switch, _>(Background::Color(ZYNC_700));
-    properties.insert::<Switch, _>(ActiveBackground(Background::Color(ZYNC_600)));
-    properties.insert::<Switch, _>(DisabledBackground(Background::Color(Color::BLACK)));
     properties.insert::<Switch, _>(ToggledBackground(Background::Color(ACCENT_COLOR)));
     properties.insert::<Switch, _>(BorderColor { color: ZYNC_700 });
-    properties.insert::<Switch, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
-    properties.insert::<Switch, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
     properties.insert::<Switch, _>(ThumbColor(Color::WHITE));
     properties.insert::<Switch, _>(ThumbRadius(8.0));
     properties.insert::<Switch, _>(TrackThickness(20.0));
@@ -138,7 +132,6 @@ pub fn default_property_set() -> DefaultProperties {
         width: BORDER_WIDTH,
     });
     properties.insert::<TextInput, _>(BorderColor { color: ZYNC_600 });
-    properties.insert::<TextInput, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
     properties.insert::<TextInput, _>(PlaceholderColor::new(PLACEHOLDER_COLOR));
     properties.insert::<TextInput, _>(CaretColor { color: TEXT_COLOR });
     properties.insert::<TextInput, _>(SelectionColor {
@@ -148,7 +141,6 @@ pub fn default_property_set() -> DefaultProperties {
         color: DISABLED_TEXT_COLOR,
     }));
     properties.insert::<TextInput, _>(Background::Color(TEXT_BACKGROUND_COLOR));
-    properties.insert::<TextInput, _>(DisabledBackground(Background::Color(TEXT_BACKGROUND_COLOR)));
 
     // TextArea
     properties.insert::<TextArea<false>, _>(ContentColor::new(TEXT_COLOR));
@@ -190,6 +182,76 @@ pub fn default_property_set() -> DefaultProperties {
     properties.insert::<Spinner, _>(ContentColor::new(TEXT_COLOR));
 
     properties
+}
+
+/// Default properties used by apps that do not install a box style resolver.
+///
+/// This includes legacy "state variant" properties like `DisabledBackground` and
+/// `HoveredBorderColor`.
+#[must_use]
+pub fn default_property_set_legacy() -> DefaultProperties {
+    let mut properties = default_property_set_common();
+
+    // Badge
+    properties.insert::<Badge, _>(DisabledBackground(Background::Color(ZYNC_800)));
+
+    // Button
+    properties.insert::<Button, _>(ActiveBackground(Background::Color(ZYNC_700)));
+    properties.insert::<Button, _>(DisabledBackground(Background::Color(Color::BLACK)));
+    properties.insert::<Button, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
+    properties.insert::<Button, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+
+    // Checkbox
+    properties.insert::<Checkbox, _>(ActiveBackground(Background::Color(ZYNC_700)));
+    properties.insert::<Checkbox, _>(DisabledBackground(Background::Color(Color::BLACK)));
+    properties.insert::<Checkbox, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
+    properties.insert::<Checkbox, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+
+    // Switch
+    properties.insert::<Switch, _>(ActiveBackground(Background::Color(ZYNC_600)));
+    properties.insert::<Switch, _>(DisabledBackground(Background::Color(Color::BLACK)));
+    properties.insert::<Switch, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
+    properties.insert::<Switch, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+
+    // TextInput
+    properties.insert::<TextInput, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+    properties.insert::<TextInput, _>(DisabledBackground(Background::Color(TEXT_BACKGROUND_COLOR)));
+
+    properties
+}
+
+/// Default properties used by apps that install a `BoxStyleResolver` (such as the default
+/// Understory-backed resolver).
+///
+/// This removes legacy "state variant" properties and instead provides default widget classes,
+/// allowing pseudoclasses like `:hover` and `:disabled` to be styled in a stylesheet.
+#[must_use]
+pub fn default_property_set_stylesheet() -> DefaultProperties {
+    let mut properties = default_property_set_common();
+
+    // Default classes used by the default Understory stylesheet.
+    properties.insert::<Button, _>(crate::properties::Classes::from_ids([
+        CLASS_CONTROL,
+        CLASS_PRESSABLE,
+    ]));
+    properties.insert::<Checkbox, _>(crate::properties::Classes::from_ids([
+        CLASS_CONTROL,
+        CLASS_PRESSABLE,
+    ]));
+    properties.insert::<Switch, _>(crate::properties::Classes::from_ids([
+        CLASS_CONTROL,
+        CLASS_PRESSABLE,
+    ]));
+    properties.insert::<TextInput, _>(crate::properties::Classes::from_ids([CLASS_CONTROL]));
+
+    properties
+}
+
+/// Backwards-compatible default properties.
+///
+/// This is equivalent to [`default_property_set_legacy`].
+pub fn default_property_set() -> DefaultProperties {
+    default_property_set_legacy()
 }
 
 /// Creates the default Understory-backed box style resolver.
