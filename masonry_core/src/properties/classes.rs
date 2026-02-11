@@ -16,6 +16,26 @@ pub struct ClassId(pub u32);
 /// This is a set (unordered) semantically: values are always stored sorted and deduplicated.
 ///
 /// Intended use is for style-rule selection in higher layers (the embedder).
+///
+/// # Sharing
+///
+/// The underlying storage is an `Arc<[ClassId]>`, so many widgets can share the same class set
+/// without per-widget allocations.
+///
+/// # Examples
+///
+/// Setting classes on a widget via its local properties:
+/// ```
+/// use masonry_core::core::Properties;
+/// use masonry_core::properties::{ClassId, Classes};
+///
+/// const PRIMARY: ClassId = ClassId(1);
+///
+/// let props = Properties::new().with(Classes::from_ids([PRIMARY]));
+/// ```
+///
+/// Embedders can then use [`Classes::as_slice`] (or [`Classes::as_arc_slice`]) when building
+/// style selector inputs/signatures.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Classes {
     classes: Arc<[ClassId]>,
