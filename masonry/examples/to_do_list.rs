@@ -13,6 +13,7 @@ use masonry::layout::Length;
 use masonry::peniko::color::AlphaColor;
 use masonry::properties::Padding;
 use masonry::properties::types::CrossAxisAlignment;
+use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set;
 use masonry::widgets::{Button, ButtonPress, Flex, Label, Portal, TextAction, TextArea, TextInput};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
@@ -20,6 +21,7 @@ use masonry_winit::winit::window::Window;
 
 const TEXT_INPUT_TAG: WidgetTag<TextInput> = WidgetTag::named("text-input");
 const LIST_TAG: WidgetTag<Flex> = WidgetTag::named("list");
+const ADD_BUTTON_TAG: WidgetTag<Button> = WidgetTag::named("add-button");
 const WIDGET_SPACING: Length = Length::const_px(5.0);
 
 struct Driver {
@@ -48,11 +50,21 @@ impl AppDriver for Driver {
                 let child = Label::new(self.next_task.clone()).with_auto_id();
                 Flex::add_fixed(&mut list, child);
             });
+            render_root.edit_widget_with_tag(ADD_BUTTON_TAG, |mut button| {
+                button.ctx.set_disabled(true);
+            });
+
+            self.next_task.clear();
         } else if action.is::<TextAction>() {
             let action = action.downcast::<TextAction>().unwrap();
             match *action {
                 TextAction::Changed(new_text) => {
+                    let is_empty = new_text.is_empty();
                     self.next_task = new_text.clone();
+                    let render_root = ctx.render_root(window_id);
+                    render_root.edit_widget_with_tag(ADD_BUTTON_TAG, |mut button| {
+                        button.ctx.set_disabled(is_empty);
+                    });
                 }
                 TextAction::Entered(_) => {}
             }
@@ -66,7 +78,8 @@ pub fn make_widget_tree() -> NewWidget<impl Widget> {
         TextInput::new("").with_placeholder("ex: 'Do the dishes', 'File my taxes', ..."),
         TEXT_INPUT_TAG,
     );
-    let button = NewWidget::new(Button::with_text("Add task"));
+    let mut button = NewWidget::new_with_tag(Button::with_text("Add task"), ADD_BUTTON_TAG);
+    button.options.disabled = true;
 
     let portal = Portal::new(NewWidget::new_with_tag(
         Flex::column().cross_axis_alignment(CrossAxisAlignment::Start),
@@ -99,7 +112,7 @@ fn main() {
     let event_loop = masonry_winit::app::EventLoop::with_user_event()
         .build()
         .unwrap();
-    masonry_winit::app::run_with(
+    masonry_winit::app::run_with_box_style_resolver(
         event_loop,
         vec![
             NewWindow::new_with_id(
@@ -111,6 +124,7 @@ fn main() {
         ],
         driver,
         default_property_set(),
+        Some(default_box_style_resolver()),
     )
     .unwrap();
 }

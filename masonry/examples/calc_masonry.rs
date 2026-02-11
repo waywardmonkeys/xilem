@@ -25,6 +25,7 @@ use masonry::properties::types::CrossAxisAlignment;
 use masonry::properties::{
     ActiveBackground, Background, BorderColor, BorderWidth, Gap, HoveredBorderColor, Padding,
 };
+use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set;
 use masonry::widgets::{Button, ButtonPress, Flex, Grid, GridParams, Label};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
@@ -301,7 +302,7 @@ fn main() {
     let event_loop = masonry_winit::app::EventLoop::with_user_event()
         .build()
         .unwrap();
-    masonry_winit::app::run_with(
+    masonry_winit::app::run_with_box_style_resolver(
         event_loop,
         vec![NewWindow::new_with_id(
             calc_state.window_id,
@@ -310,6 +311,7 @@ fn main() {
         )],
         calc_state,
         default_property_set(),
+        Some(default_box_style_resolver()),
     )
     .unwrap();
 }
