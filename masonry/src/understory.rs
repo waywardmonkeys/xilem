@@ -114,6 +114,7 @@ impl UnderstoryBoxStyleResolver {
         const ACTIVE: PseudoClassId = PseudoClassId(2);
         const FOCUS_WITHIN: PseudoClassId = PseudoClassId(4);
         const DISABLED: PseudoClassId = PseudoClassId(5);
+        const TOGGLED: PseudoClassId = PseudoClassId(6);
 
         const CONTROL: understory_style::ClassId =
             understory_style::ClassId(crate::theme::CLASS_CONTROL.0);
@@ -154,6 +155,12 @@ impl UnderstoryBoxStyleResolver {
             .build();
 
         // Widget-specific overrides where the values differ from the shared pseudo styles.
+        let switch_toggled_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ACCENT_COLOR),
+            )
+            .build();
         let switch_active_bg = StyleBuilder::new()
             .set(
                 resolver.background,
@@ -168,6 +175,18 @@ impl UnderstoryBoxStyleResolver {
             .build();
 
         let sheet = StyleSheetBuilder::new()
+            // Type-specific rules.
+            //
+            // Order matters when multiple selectors apply; later rules win for equal specificity.
+            // This is arranged so `:active` overrides `:toggled`, and `:disabled` overrides both.
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
+                    required_pseudos: IdSet::from_ids([TOGGLED]),
+                },
+                switch_toggled_bg,
+            )
             // Shared pseudo rules.
             .rule(
                 Selector {
@@ -177,6 +196,15 @@ impl UnderstoryBoxStyleResolver {
                 },
                 active_bg.clone(),
             )
+            // Type-specific overrides.
+            .rule(
+                Selector {
+                    type_tag: Some(SWITCH),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
+                    required_pseudos: IdSet::from_ids([ACTIVE]),
+                },
+                switch_active_bg,
+            )
             .rule(
                 Selector {
                     type_tag: None,
@@ -185,6 +213,15 @@ impl UnderstoryBoxStyleResolver {
                 },
                 disabled_bg.clone(),
             )
+            .rule(
+                Selector {
+                    type_tag: Some(BADGE),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                badge_disabled_bg,
+            )
+            // Shared border pseudo rules.
             .rule(
                 Selector {
                     type_tag: None,
@@ -200,23 +237,6 @@ impl UnderstoryBoxStyleResolver {
                     required_pseudos: IdSet::from_ids([FOCUS_WITHIN]),
                 },
                 focus_border.clone(),
-            )
-            // Type-specific overrides.
-            .rule(
-                Selector {
-                    type_tag: Some(SWITCH),
-                    required_classes: IdSet::from_ids([PRESSABLE]),
-                    required_pseudos: IdSet::from_ids([ACTIVE]),
-                },
-                switch_active_bg,
-            )
-            .rule(
-                Selector {
-                    type_tag: Some(BADGE),
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([DISABLED]),
-                },
-                badge_disabled_bg,
             )
             .build();
 
@@ -286,7 +306,7 @@ impl StyleResolver for UnderstoryBoxStyleResolver {
         let classes = self.classes_for(classes);
 
         // Map Masonry's fixed pseudos to Understory pseudo IDs.
-        let mut pseudo_ids = [PseudoClassId(0); 5];
+        let mut pseudo_ids = [PseudoClassId(0); 6];
         let mut len = 0;
         if pseudos.contains(StylePseudos::HOVER) {
             pseudo_ids[len] = PseudoClassId(1);
@@ -306,6 +326,10 @@ impl StyleResolver for UnderstoryBoxStyleResolver {
         }
         if pseudos.contains(StylePseudos::DISABLED) {
             pseudo_ids[len] = PseudoClassId(5);
+            len += 1;
+        }
+        if pseudos.contains(StylePseudos::TOGGLED) {
+            pseudo_ids[len] = PseudoClassId(6);
             len += 1;
         }
 
@@ -389,6 +413,22 @@ mod tests {
             style.background.map(|v| v.as_ref().clone()),
             Some(masonry_core::properties::Background::Color(
                 crate::theme::ZYNC_800
+            ))
+        );
+    }
+
+    #[test]
+    fn switch_toggled_background_applies() {
+        let resolver = UnderstoryBoxStyleResolver::new_default();
+        let classes: Arc<[ClassId]> = Arc::from([crate::theme::CLASS_PRESSABLE]);
+        let pseudos = StylePseudos::TOGGLED;
+
+        let style =
+            resolver.resolve_box_paint(TypeId::of::<crate::widgets::Switch>(), pseudos, &classes);
+        assert_eq!(
+            style.background.map(|v| v.as_ref().clone()),
+            Some(masonry_core::properties::Background::Color(
+                crate::theme::ACCENT_COLOR
             ))
         );
     }
