@@ -93,13 +93,18 @@ impl UnderstoryBoxStyleResolver {
 
         const HOVER: PseudoClassId = PseudoClassId(1);
         const ACTIVE: PseudoClassId = PseudoClassId(2);
-        const FOCUS: PseudoClassId = PseudoClassId(3);
-        const DISABLED: PseudoClassId = PseudoClassId(4);
+        const FOCUS_WITHIN: PseudoClassId = PseudoClassId(4);
+        const DISABLED: PseudoClassId = PseudoClassId(5);
 
-        // Shared pseudo styles (apply to all widget types).
+        const CONTROL: understory_style::ClassId =
+            understory_style::ClassId(crate::theme::CLASS_CONTROL.0);
+        const PRESSABLE: understory_style::ClassId =
+            understory_style::ClassId(crate::theme::CLASS_PRESSABLE.0);
+
+        // Shared pseudo styles.
         //
-        // These are expressed as universal selectors (`type_tag: None`) so we don't need to
-        // duplicate the same :disabled/:hover/:focus rules for each widget type.
+        // These are expressed as selectors over default classes, so we don't need to duplicate the
+        // same rules for each widget type.
         let active_bg = StyleBuilder::new()
             .set(
                 resolver.background,
@@ -144,11 +149,11 @@ impl UnderstoryBoxStyleResolver {
             .build();
 
         let sheet = StyleSheetBuilder::new()
-            // Universal pseudo rules.
+            // Shared pseudo rules.
             .rule(
                 Selector {
                     type_tag: None,
-                    required_classes: IdSet::default(),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
                     required_pseudos: IdSet::from_ids([ACTIVE]),
                 },
                 active_bg.clone(),
@@ -156,7 +161,7 @@ impl UnderstoryBoxStyleResolver {
             .rule(
                 Selector {
                     type_tag: None,
-                    required_classes: IdSet::default(),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
                     required_pseudos: IdSet::from_ids([DISABLED]),
                 },
                 disabled_bg.clone(),
@@ -164,7 +169,7 @@ impl UnderstoryBoxStyleResolver {
             .rule(
                 Selector {
                     type_tag: None,
-                    required_classes: IdSet::default(),
+                    required_classes: IdSet::from_ids([CONTROL]),
                     required_pseudos: IdSet::from_ids([HOVER]),
                 },
                 hover_border.clone(),
@@ -172,8 +177,8 @@ impl UnderstoryBoxStyleResolver {
             .rule(
                 Selector {
                     type_tag: None,
-                    required_classes: IdSet::default(),
-                    required_pseudos: IdSet::from_ids([FOCUS]),
+                    required_classes: IdSet::from_ids([CONTROL]),
+                    required_pseudos: IdSet::from_ids([FOCUS_WITHIN]),
                 },
                 focus_border.clone(),
             )
@@ -181,7 +186,7 @@ impl UnderstoryBoxStyleResolver {
             .rule(
                 Selector {
                     type_tag: Some(SWITCH),
-                    required_classes: IdSet::default(),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
                     required_pseudos: IdSet::from_ids([ACTIVE]),
                 },
                 switch_active_bg,
@@ -297,9 +302,9 @@ mod tests {
     use super::UnderstoryBoxStyleResolver;
 
     #[test]
-    fn universal_disabled_background_applies() {
+    fn pressable_disabled_background_applies() {
         let resolver = UnderstoryBoxStyleResolver::new_default();
-        let classes: Arc<[ClassId]> = Arc::from([]);
+        let classes: Arc<[ClassId]> = Arc::from([crate::theme::CLASS_PRESSABLE]);
         let pseudos = StylePseudos::DISABLED;
 
         let style =
@@ -315,13 +320,14 @@ mod tests {
     #[test]
     fn type_specific_override_wins_over_universal() {
         let resolver = UnderstoryBoxStyleResolver::new_default();
-        let classes: Arc<[ClassId]> = Arc::from([]);
+        let pressable: Arc<[ClassId]> = Arc::from([crate::theme::CLASS_PRESSABLE]);
+        let none: Arc<[ClassId]> = Arc::from([]);
 
         // Switch :active uses a different background than the universal :active background.
         let style = resolver.resolve_box_paint(
             TypeId::of::<crate::widgets::Switch>(),
             StylePseudos::ACTIVE,
-            &classes,
+            &pressable,
         );
         assert_eq!(
             style.background,
@@ -334,7 +340,7 @@ mod tests {
         let style = resolver.resolve_box_paint(
             TypeId::of::<crate::widgets::Badge>(),
             StylePseudos::DISABLED,
-            &classes,
+            &none,
         );
         assert_eq!(
             style.background,
