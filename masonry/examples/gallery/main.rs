@@ -31,7 +31,7 @@ use masonry::dpi::LogicalSize;
 use masonry::parley::style::FontWeight;
 use masonry::properties::Padding;
 use masonry::properties::types::CrossAxisAlignment;
-use masonry::theme::default_property_set;
+use masonry::theme::{default_property_set_stylesheet, default_style_resolver};
 use masonry::widgets::{
     Button, ButtonPress, Checkbox, CheckboxToggled, Flex, IndexedStack, Label, Portal, SizedBox,
     SwitchToggled,
@@ -326,14 +326,19 @@ fn main() {
         .with_resizable(true)
         .with_min_inner_size(window_size);
 
-    masonry_winit::app::run(
+    let event_loop = masonry_winit::app::EventLoop::with_user_event()
+        .build()
+        .unwrap();
+    masonry_winit::app::run_with_style_resolver(
+        event_loop,
         vec![NewWindow::new_with_id(
             driver.window_id,
             window_attributes,
             NewWidget::new(root).erased(),
         )],
         driver,
-        default_property_set(),
+        default_property_set_stylesheet(),
+        Some(default_style_resolver()),
     )
     .unwrap();
 }
