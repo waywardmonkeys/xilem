@@ -71,6 +71,10 @@ impl StylePseudos {
     ///
     /// Embedders should generally treat disabled as inherited, matching Masonry's behavior.
     pub const DISABLED: Self = Self { bits: 1 << 4 };
+    /// The element is toggled/checked/on.
+    ///
+    /// This is intended for boolean state like switches or checkboxes.
+    pub const TOGGLED: Self = Self { bits: 1 << 5 };
 
     /// Creates a pseudo set from common Masonry interaction flags.
     #[must_use]

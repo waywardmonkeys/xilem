@@ -48,6 +48,7 @@ fn paint_widget(
             global_state,
             widget_state: state,
             widget_type: widget.type_id(),
+            style_pseudos_extra: widget.style_pseudos_extra(),
             children: children.reborrow_mut(),
         };
         let props = PropertiesRef {

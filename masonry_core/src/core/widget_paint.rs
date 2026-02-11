@@ -34,7 +34,7 @@ impl<'a> PrePaintProps<'a> {
     /// Returns common pre-paint properties based on widget state.
     pub fn fetch(ctx: &'a PaintCtx<'_>, props: &'a PropertiesRef<'_>) -> Self {
         let box_shadow = props.get::<BoxShadow>();
-        let pseudos = ctx.style_pseudos();
+        let pseudos = ctx.style_pseudos_for_style();
         let classes = props.get::<Classes>();
         let classes = classes.as_arc_slice();
         let global_state = &*ctx.global_state;
@@ -264,6 +264,7 @@ mod tests {
             global_state: &mut state_with_resolver,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
+            style_pseudos_extra: StylePseudos::EMPTY,
             children,
         };
 
@@ -285,6 +286,7 @@ mod tests {
             global_state: &mut state_without_resolver,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
+            style_pseudos_extra: StylePseudos::EMPTY,
             children,
         };
         let p = PrePaintProps::fetch(&ctx, &props_ref);
@@ -332,6 +334,7 @@ mod tests {
             global_state: &mut state,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
+            style_pseudos_extra: StylePseudos::EMPTY,
             children,
         };
 

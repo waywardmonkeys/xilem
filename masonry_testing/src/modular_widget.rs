@@ -12,6 +12,7 @@ use masonry_core::core::{
 };
 use masonry_core::kurbo::{Axis, Point, Size};
 use masonry_core::layout::{LayoutSize, LenReq, SizeDef};
+use masonry_core::style::StylePseudos;
 use masonry_core::vello::Scene;
 use tracing::trace_span;
 
@@ -330,6 +331,10 @@ impl<S> ModularWidget<S> {
 #[warn(clippy::missing_trait_methods)]
 impl<S: 'static> Widget for ModularWidget<S> {
     type Action = NoAction;
+
+    fn style_pseudos_extra(&self) -> StylePseudos {
+        StylePseudos::EMPTY
+    }
 
     fn on_pointer_event(
         &mut self,

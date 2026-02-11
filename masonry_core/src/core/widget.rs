@@ -386,6 +386,15 @@ pub trait Widget: AsDynWidget + Any {
     fn post_paint(&mut self, ctx: &mut PaintCtx<'_>, props: &PropertiesRef<'_>, scene: &mut Scene) {
     }
 
+    /// Returns additional style pseudoclasses for this widget.
+    ///
+    /// This is intended for widget-internal state such as `:toggled`.
+    /// Interaction pseudos (`:hover`, `:active`, `:focus`, `:disabled`) are tracked by Masonry Core.
+    #[must_use]
+    fn style_pseudos_extra(&self) -> crate::style::StylePseudos {
+        crate::style::StylePseudos::EMPTY
+    }
+
     /// Returns what kind of "thing" the widget fundamentally is.
     fn accessibility_role(&self) -> Role;
 

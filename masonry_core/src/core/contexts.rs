@@ -140,6 +140,7 @@ pub struct PaintCtx<'a> {
     pub(crate) global_state: &'a mut RenderRootState,
     pub(crate) widget_state: &'a WidgetState,
     pub(crate) widget_type: TypeId,
+    pub(crate) style_pseudos_extra: StylePseudos,
     pub(crate) children: ArenaMutList<'a, WidgetArenaNode>,
 }
 
@@ -1949,5 +1950,12 @@ impl PaintCtx<'_> {
     #[must_use]
     pub fn has_style_resolver(&self) -> bool {
         self.global_state.style_resolver.is_some()
+    }
+
+    /// A compact set of style pseudoclasses for this widget, including widget-provided extras.
+    ///
+    /// This is intended for use when building style selector inputs during painting.
+    pub fn style_pseudos_for_style(&self) -> StylePseudos {
+        self.style_pseudos() | self.style_pseudos_extra
     }
 }

@@ -21,6 +21,7 @@ use masonry_core::core::{
 };
 use masonry_core::kurbo::{Axis, Point, Size};
 use masonry_core::layout::LenReq;
+use masonry_core::style::StylePseudos;
 use masonry_core::vello::Scene;
 
 // TODO - Re-enable doc test.
@@ -154,6 +155,10 @@ impl<W: Widget> Recorder<W> {
 #[warn(clippy::missing_trait_methods)]
 impl<W: Widget> Widget for Recorder<W> {
     type Action = W::Action;
+
+    fn style_pseudos_extra(&self) -> StylePseudos {
+        self.child.style_pseudos_extra()
+    }
 
     fn on_pointer_event(
         &mut self,
