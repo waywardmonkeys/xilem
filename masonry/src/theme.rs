@@ -21,6 +21,8 @@ use crate::widgets::{
     Badge, Button, Checkbox, Divider, Flex, Grid, Label, ProgressBar, Spinner, Switch, TextArea,
     TextInput,
 };
+use masonry_core::style::BoxStyleResolver;
+use std::rc::Rc;
 
 /// Default color for the app background.
 ///
@@ -188,6 +190,15 @@ pub fn default_property_set() -> DefaultProperties {
     properties.insert::<Spinner, _>(ContentColor::new(TEXT_COLOR));
 
     properties
+}
+
+/// Creates the default Understory-backed box style resolver.
+///
+/// This resolver is optional and must be installed on a `RenderRoot` via
+/// [`RenderRoot::set_box_style_resolver`](masonry_core::app::RenderRoot::set_box_style_resolver).
+#[must_use]
+pub fn default_box_style_resolver() -> Rc<dyn BoxStyleResolver> {
+    Rc::new(crate::understory::UnderstoryBoxStyleResolver::new_default())
 }
 
 /// Applies the default text styles for Masonry into `styles`.

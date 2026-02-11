@@ -31,6 +31,8 @@ smallvec.workspace = true
 tracing = { workspace = true, features = ["default"] }
 vello.workspace = true
 include_doc_path.workspace = true
+understory_property = { path = "../../understory/understory_property" }
+understory_style = { path = "../../understory/understory_style" }
 
 [dev-dependencies]
 assert_matches = "1.5.0"

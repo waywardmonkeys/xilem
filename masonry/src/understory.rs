@@ -1,0 +1,234 @@
+// Copyright 2026 the Xilem Authors
+// SPDX-License-Identifier: Apache-2.0
+
+//! Adapters for using Understory-style selector rules with Masonry.
+//!
+//! Masonry Core can consult an embedder-provided [`BoxStyleResolver`] during `pre_paint`.
+//! This module provides a resolver implemented using [`understory_style`].
+
+use std::any::TypeId;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::vec::Vec;
+
+use masonry_core::properties::{Background, BorderColor, ClassId};
+use masonry_core::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos};
+
+use understory_property::{PropertyMetadataBuilder, PropertyRegistry};
+use understory_style::{
+    IdSet, PseudoClassId, Selector, SelectorInputs, StyleBuilder, StyleCascade,
+    StyleCascadeBuilder, StyleOrigin, StyleSheetBuilder, TypeTag,
+};
+
+/// Understory-backed resolver for pseudo/class-driven box painting.
+#[derive(Debug)]
+pub struct UnderstoryBoxStyleResolver {
+    background: understory_property::Property<Background>,
+    border_color: understory_property::Property<BorderColor>,
+    cascade: StyleCascade,
+    type_tags: Mutex<TypeTagState>,
+    class_cache: Mutex<HashMap<Arc<[ClassId]>, Arc<[understory_style::ClassId]>>>,
+}
+
+#[derive(Debug, Default)]
+struct TypeTagState {
+    next: u32,
+    known: HashMap<TypeId, TypeTag>,
+}
+
+impl UnderstoryBoxStyleResolver {
+    /// Creates an empty resolver with no rules.
+    #[must_use]
+    pub fn new_empty() -> Self {
+        let mut registry = PropertyRegistry::new();
+        let background = registry.register(
+            "Background",
+            PropertyMetadataBuilder::new(Background::default()).build(),
+        );
+        let border_color = registry.register(
+            "BorderColor",
+            PropertyMetadataBuilder::new(BorderColor::default()).build(),
+        );
+
+        let empty_sheet = StyleSheetBuilder::new().build();
+        let cascade = StyleCascadeBuilder::new()
+            .push_sheet(StyleOrigin::Sheet, empty_sheet)
+            .build();
+
+        Self {
+            background,
+            border_color,
+            cascade,
+            type_tags: Mutex::new(TypeTagState::default()),
+            class_cache: Mutex::new(HashMap::new()),
+        }
+    }
+
+    /// Creates a resolver with default Masonry control rules (currently `Button` only).
+    #[must_use]
+    pub fn new_default() -> Self {
+        let mut resolver = Self::new_empty();
+
+        // Reserve stable tags for known widget types.
+        const BUTTON: TypeTag = TypeTag(1);
+        resolver
+            .type_tags
+            .lock()
+            .expect("poisoned TypeTagState lock")
+            .known
+            .insert(TypeId::of::<crate::widgets::Button>(), BUTTON);
+
+        const HOVER: PseudoClassId = PseudoClassId(1);
+        const ACTIVE: PseudoClassId = PseudoClassId(2);
+        const FOCUS: PseudoClassId = PseudoClassId(3);
+        const DISABLED: PseudoClassId = PseudoClassId(4);
+
+        let active_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ZYNC_700),
+            )
+            .build();
+        let disabled_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::peniko::Color::BLACK),
+            )
+            .build();
+        let hover_border = StyleBuilder::new()
+            .set(
+                resolver.border_color,
+                BorderColor {
+                    color: crate::theme::ZYNC_500,
+                },
+            )
+            .build();
+        let focus_border = StyleBuilder::new()
+            .set(
+                resolver.border_color,
+                BorderColor {
+                    color: crate::theme::FOCUS_COLOR,
+                },
+            )
+            .build();
+
+        let sheet = StyleSheetBuilder::new()
+            .rule(
+                Selector {
+                    type_tag: Some(BUTTON),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([ACTIVE]),
+                },
+                active_bg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(BUTTON),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                disabled_bg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(BUTTON),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([HOVER]),
+                },
+                hover_border,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(BUTTON),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([FOCUS]),
+                },
+                focus_border,
+            )
+            .build();
+
+        resolver.cascade = StyleCascadeBuilder::new()
+            .push_sheet(StyleOrigin::Sheet, sheet)
+            .build();
+
+        resolver
+    }
+
+    fn type_tag_for(&self, widget_type: TypeId) -> TypeTag {
+        let mut state = self.type_tags.lock().expect("poisoned TypeTagState lock");
+        if let Some(tag) = state.known.get(&widget_type) {
+            return *tag;
+        }
+        let tag = TypeTag(state.next);
+        state.next = state
+            .next
+            .checked_add(1)
+            .expect("UnderstoryBoxStyleResolver exhausted available tags");
+        state.known.insert(widget_type, tag);
+        tag
+    }
+
+    fn classes_for(&self, classes: &Arc<[ClassId]>) -> Arc<[understory_style::ClassId]> {
+        let mut cache = self.class_cache.lock().expect("poisoned class cache lock");
+        if let Some(mapped) = cache.get(classes) {
+            return Arc::clone(mapped);
+        }
+
+        let mapped: Arc<[understory_style::ClassId]> = classes
+            .iter()
+            .map(|ClassId(id)| understory_style::ClassId(*id))
+            .collect::<Vec<_>>()
+            .into();
+        cache.insert(Arc::clone(classes), Arc::clone(&mapped));
+        mapped
+    }
+}
+
+impl BoxStyleResolver for UnderstoryBoxStyleResolver {
+    fn resolve_box_paint(
+        &self,
+        widget_type: TypeId,
+        pseudos: StylePseudos,
+        classes: &Arc<[ClassId]>,
+    ) -> BoxPaintStyle {
+        let type_tag = self.type_tag_for(widget_type);
+        let classes = self.classes_for(classes);
+
+        // Map Masonry's fixed pseudos to Understory pseudo IDs.
+        let mut pseudo_ids = [PseudoClassId(0); 4];
+        let mut len = 0;
+        if pseudos.contains(StylePseudos::HOVER) {
+            pseudo_ids[len] = PseudoClassId(1);
+            len += 1;
+        }
+        if pseudos.contains(StylePseudos::ACTIVE) {
+            pseudo_ids[len] = PseudoClassId(2);
+            len += 1;
+        }
+        if pseudos.contains(StylePseudos::FOCUS) {
+            pseudo_ids[len] = PseudoClassId(3);
+            len += 1;
+        }
+        if pseudos.contains(StylePseudos::DISABLED) {
+            pseudo_ids[len] = PseudoClassId(4);
+            len += 1;
+        }
+
+        let inputs = SelectorInputs {
+            type_tag: Some(type_tag),
+            classes: &classes,
+            pseudos: &pseudo_ids[..len],
+        };
+
+        BoxPaintStyle {
+            background: self
+                .cascade
+                .get_value_ref(&inputs, self.background)
+                .cloned(),
+            border_color: self
+                .cascade
+                .get_value_ref(&inputs, self.border_color)
+                .copied(),
+        }
+    }
+}

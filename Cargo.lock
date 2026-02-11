@@ -2162,6 +2162,8 @@ dependencies = [
  "profiling",
  "smallvec",
  "tracing",
+ "understory_property",
+ "understory_style",
  "vello",
 ]
 
@@ -4489,6 +4491,29 @@ dependencies = [
  "ui-events",
  "web-time",
  "winit",
+]
+
+[[package]]
+name = "understory_dirty"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "understory_property"
+version = "0.1.0"
+dependencies = [
+ "hashbrown 0.16.1",
+ "smallvec",
+ "understory_dirty",
+]
+
+[[package]]
+name = "understory_style"
+version = "0.1.0"
+dependencies = [
+ "understory_property",
 ]
 
 [[package]]
