@@ -10,24 +10,7 @@ use crate::properties::{
     ActiveBackground, Background, BorderColor, BorderWidth, BoxShadow, Classes, CornerRadius,
     DisabledBackground, FocusedBorderColor, HoveredBorderColor,
 };
-
-/// A reference to a value which may be owned or borrowed.
-#[derive(Clone, Debug)]
-pub enum Resolved<'a, T> {
-    /// Borrowed from widget properties/defaults.
-    Borrowed(&'a T),
-    /// Owned override computed by a style resolver.
-    Owned(T),
-}
-
-impl<T> AsRef<T> for Resolved<'_, T> {
-    fn as_ref(&self) -> &T {
-        match self {
-            Self::Borrowed(v) => v,
-            Self::Owned(v) => v,
-        }
-    }
-}
+use crate::style::StyleValue;
 
 /// References to common pre-paint properties.
 pub struct PrePaintProps<'a> {
@@ -36,66 +19,66 @@ pub struct PrePaintProps<'a> {
     /// Background.
     ///
     /// Considers disabled and active state.
-    pub background: Resolved<'a, Background>,
+    pub background: StyleValue<'a, Background>,
     /// Border width.
     pub border_width: &'a BorderWidth,
     /// Border color.
     ///
     /// Considers focus and hovered state.
-    pub border_color: Resolved<'a, BorderColor>,
+    pub border_color: StyleValue<'a, BorderColor>,
     /// Corner radius,
     pub corner_radius: &'a CornerRadius,
 }
 
 impl<'a> PrePaintProps<'a> {
     /// Returns common pre-paint properties based on widget state.
-    pub fn fetch(ctx: &mut PaintCtx<'_>, props: &'a PropertiesRef<'_>) -> Self {
+    pub fn fetch(ctx: &'a PaintCtx<'_>, props: &'a PropertiesRef<'_>) -> Self {
         let box_shadow = props.get::<BoxShadow>();
         let pseudos = ctx.style_pseudos();
         let classes = props.get::<Classes>();
         let classes = classes.as_arc_slice();
-        let has_style_resolver = ctx.global_state.box_style_resolver.is_some();
-        let style = ctx
-            .global_state
+        let global_state = &*ctx.global_state;
+        let has_style_resolver = global_state.box_style_resolver.is_some();
+        let style = global_state
             .box_style_resolver
             .as_deref()
             .map(|r| r.resolve_box_paint(ctx.widget_type, pseudos, &classes))
             .unwrap_or_default();
 
         let background = if props.contains::<Background>() {
-            Resolved::Borrowed(props.get::<Background>())
+            StyleValue::Borrowed(props.get::<Background>())
         } else if let Some(bg) = style.background {
-            Resolved::Owned(bg)
+            bg
         } else if !has_style_resolver
             && ctx.is_disabled()
             && let Some(db) = props.get_defined::<DisabledBackground>()
         {
-            Resolved::Borrowed(&db.0)
+            StyleValue::Borrowed(&db.0)
         } else if !has_style_resolver
             && ctx.is_active()
             && let Some(ab) = props.get_defined::<ActiveBackground>()
         {
-            Resolved::Borrowed(&ab.0)
+            StyleValue::Borrowed(&ab.0)
         } else {
-            Resolved::Borrowed(props.get::<Background>())
+            StyleValue::Borrowed(props.get::<Background>())
         };
 
         let border_color = if props.contains::<BorderColor>() {
-            Resolved::Borrowed(props.get::<BorderColor>())
+            StyleValue::Borrowed(props.get::<BorderColor>())
         } else if let Some(color) = style.border_color {
-            Resolved::Owned(color)
+            color
         } else if !has_style_resolver
             && ctx.is_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
-            Resolved::Borrowed(&fb.0)
+            StyleValue::Borrowed(&fb.0)
         } else if !has_style_resolver
             && ctx.is_hovered()
             && let Some(hb) = props.get_defined::<HoveredBorderColor>()
         {
-            Resolved::Borrowed(&hb.0)
+            StyleValue::Borrowed(&hb.0)
         } else {
-            Resolved::Borrowed(props.get::<BorderColor>())
+            StyleValue::Borrowed(props.get::<BorderColor>())
         };
 
         let border_width = props.get::<BorderWidth>();
@@ -223,7 +206,7 @@ mod tests {
             _widget_type: TypeId,
             _pseudos: StylePseudos,
             _classes: &Arc<[ClassId]>,
-        ) -> BoxPaintStyle {
+        ) -> BoxPaintStyle<'_> {
             BoxPaintStyle::default()
         }
     }
@@ -277,14 +260,14 @@ mod tests {
         // With a resolver installed, legacy state properties should be ignored.
         let mut state_with_resolver =
             test_render_root_state_for_paint(Some(Rc::new(EmptyResolver)));
-        let mut ctx = PaintCtx {
+        let ctx = PaintCtx {
             global_state: &mut state_with_resolver,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
             children,
         };
 
-        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        let p = PrePaintProps::fetch(&ctx, &props_ref);
         assert_eq!(p.background.as_ref(), &base_bg);
         assert_ne!(p.background.as_ref(), &legacy_disabled_bg);
         assert_ne!(p.background.as_ref(), &legacy_active_bg);
@@ -298,13 +281,13 @@ mod tests {
         // Without a resolver, the legacy state fallbacks apply.
         let mut state_without_resolver = test_render_root_state_for_paint(None);
         let children = arena.roots_mut();
-        let mut ctx = PaintCtx {
+        let ctx = PaintCtx {
             global_state: &mut state_without_resolver,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
             children,
         };
-        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        let p = PrePaintProps::fetch(&ctx, &props_ref);
         assert_eq!(p.background.as_ref(), &legacy_disabled_bg);
         assert_eq!(
             p.border_color.as_ref(),
@@ -345,14 +328,14 @@ mod tests {
         let mut arena: TreeArena<WidgetArenaNode> = TreeArena::new();
         let children = arena.roots_mut();
         let mut state = test_render_root_state_for_paint(Some(Rc::new(EmptyResolver)));
-        let mut ctx = PaintCtx {
+        let ctx = PaintCtx {
             global_state: &mut state,
             widget_state: &widget_state,
             widget_type: TypeId::of::<()>(),
             children,
         };
 
-        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        let p = PrePaintProps::fetch(&ctx, &props_ref);
         assert_eq!(p.background.as_ref(), &local_bg);
     }
 }

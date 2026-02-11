@@ -17,6 +17,24 @@ use crate::core::{PropertiesMut, PropertiesRef};
 use crate::properties::{Background, BorderColor};
 use crate::properties::{ClassId, Classes};
 
+/// A reference to a style value which may be owned or borrowed.
+#[derive(Clone, Debug)]
+pub enum StyleValue<'a, T> {
+    /// Borrowed from a style system, widget properties, or defaults.
+    Borrowed(&'a T),
+    /// Owned value computed by a resolver.
+    Owned(T),
+}
+
+impl<T> AsRef<T> for StyleValue<'_, T> {
+    fn as_ref(&self) -> &T {
+        match self {
+            Self::Borrowed(v) => v,
+            Self::Owned(v) => v,
+        }
+    }
+}
+
 /// A stable identifier for an element "type" in style selectors.
 ///
 /// This is application-defined (for example `Button`, `Label`, `SliderThumb`).
@@ -153,12 +171,12 @@ impl StyleSignature {
 }
 
 /// Pseudo-driven overrides for box painting.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct BoxPaintStyle {
+#[derive(Clone, Debug, Default)]
+pub struct BoxPaintStyle<'a> {
     /// If set, overrides the resolved background.
-    pub background: Option<Background>,
+    pub background: Option<StyleValue<'a, Background>>,
     /// If set, overrides the resolved border color.
-    pub border_color: Option<BorderColor>,
+    pub border_color: Option<StyleValue<'a, BorderColor>>,
 }
 
 /// A hook for embedders to provide style-driven values.
@@ -179,7 +197,7 @@ pub trait BoxStyleResolver {
         widget_type: TypeId,
         pseudos: StylePseudos,
         classes: &Arc<[ClassId]>,
-    ) -> BoxPaintStyle;
+    ) -> BoxPaintStyle<'_>;
 }
 
 #[cfg(test)]
