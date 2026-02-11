@@ -12,7 +12,7 @@ use std::sync::{Arc, Mutex};
 use std::vec::Vec;
 
 use masonry_core::properties::{Background, BorderColor, ClassId};
-use masonry_core::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos};
+use masonry_core::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos, StyleValue};
 
 use understory_property::{PropertyMetadataBuilder, PropertyRegistry};
 use understory_style::{
@@ -244,7 +244,7 @@ impl BoxStyleResolver for UnderstoryBoxStyleResolver {
         widget_type: TypeId,
         pseudos: StylePseudos,
         classes: &Arc<[ClassId]>,
-    ) -> BoxPaintStyle {
+    ) -> BoxPaintStyle<'_> {
         let type_tag = self.type_tag_for(widget_type);
         let classes = self.classes_for(classes);
 
@@ -282,11 +282,11 @@ impl BoxStyleResolver for UnderstoryBoxStyleResolver {
             background: self
                 .cascade
                 .get_value_ref(&inputs, self.background)
-                .cloned(),
+                .map(StyleValue::Borrowed),
             border_color: self
                 .cascade
                 .get_value_ref(&inputs, self.border_color)
-                .copied(),
+                .map(StyleValue::Borrowed),
         }
     }
 }
@@ -310,7 +310,7 @@ mod tests {
         let style =
             resolver.resolve_box_paint(TypeId::of::<crate::widgets::Button>(), pseudos, &classes);
         assert_eq!(
-            style.background,
+            style.background.map(|v| v.as_ref().clone()),
             Some(masonry_core::properties::Background::Color(
                 crate::peniko::Color::BLACK
             ))
@@ -330,7 +330,7 @@ mod tests {
             &pressable,
         );
         assert_eq!(
-            style.background,
+            style.background.map(|v| v.as_ref().clone()),
             Some(masonry_core::properties::Background::Color(
                 crate::theme::ZYNC_600
             ))
@@ -343,7 +343,7 @@ mod tests {
             &none,
         );
         assert_eq!(
-            style.background,
+            style.background.map(|v| v.as_ref().clone()),
             Some(masonry_core::properties::Background::Color(
                 crate::theme::ZYNC_800
             ))

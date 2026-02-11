@@ -20,6 +20,7 @@ use crate::properties::{
     UnfocusedSelectionColor,
 };
 use crate::widgets::{Label, TextArea};
+use masonry_core::style::StyleValue;
 
 /// The text input widget displays text which can be edited by the user,
 /// inside a surrounding box.
@@ -293,7 +294,7 @@ impl Widget for TextInput {
             && ctx.has_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
-            p.border_color = masonry_core::core::Resolved::Borrowed(&fb.0);
+            p.border_color = StyleValue::Borrowed(&fb.0);
         }
 
         paint_box_shadow(scene, bbox, p.box_shadow, p.corner_radius);
