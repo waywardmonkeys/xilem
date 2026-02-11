@@ -18,7 +18,7 @@ use crate::core::{
 use crate::kurbo::{Affine, Axis, BezPath, Cap, Dashes, Join, Point, Size, Stroke};
 use crate::layout::{LayoutSize, LenReq, SizeDef};
 use crate::properties::{
-    BorderColor, BorderWidth, CheckmarkColor, CheckmarkStrokeWidth, CornerRadius,
+    BorderColor, BorderWidth, CheckmarkColor, CheckmarkStrokeWidth, Classes, CornerRadius,
     DisabledCheckmarkColor, FocusedBorderColor, HoveredBorderColor,
 };
 use crate::theme;
@@ -326,12 +326,28 @@ impl Widget for Checkbox {
         // Paint the checkmark if checked
         if self.checked {
             let checkmark_width = props.get::<CheckmarkStrokeWidth>();
-            let brush = if ctx.is_disabled()
+            let local_checkmark_color = if ctx.is_disabled() {
+                props.get_defined::<DisabledCheckmarkColor>().map(|c| c.0)
+            } else {
+                None
+            }
+            .or_else(|| props.get_defined::<CheckmarkColor>().copied());
+
+            let checkmark_color = if let Some(color) = local_checkmark_color {
+                color.color
+            } else if let Some(resolver) = ctx.style_resolver() {
+                let pseudos = ctx.style_pseudos_for_style();
+                let classes = props.get::<Classes>().as_arc_slice();
+                resolver
+                    .resolve_foreground_color(TypeId::of::<Self>(), pseudos, &classes)
+                    .map(|v| *v.as_ref())
+                    .unwrap_or(props.get::<CheckmarkColor>().color)
+            } else if ctx.is_disabled()
                 && let Some(dc) = props.get_defined::<DisabledCheckmarkColor>()
             {
-                &dc.0
+                dc.0.color
             } else {
-                props.get::<CheckmarkColor>()
+                props.get::<CheckmarkColor>().color
             };
 
             let mut path = BezPath::new();
@@ -348,7 +364,7 @@ impl Widget for Checkbox {
                 dash_pattern: Dashes::default(),
                 dash_offset: 0.0,
             };
-            scene.stroke(&style, Affine::IDENTITY, brush.color, None, &path);
+            scene.stroke(&style, Affine::IDENTITY, checkmark_color, None, &path);
         }
     }
 

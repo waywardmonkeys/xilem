@@ -98,10 +98,6 @@ fn default_property_set_common() -> DefaultProperties {
     properties.insert::<Checkbox, _>(BorderColor { color: ZYNC_700 });
 
     properties.insert::<Checkbox, _>(CheckmarkStrokeWidth { width: 2.0 });
-    properties.insert::<Checkbox, _>(CheckmarkColor { color: TEXT_COLOR });
-    properties.insert::<Checkbox, _>(DisabledCheckmarkColor(CheckmarkColor {
-        color: DISABLED_TEXT_COLOR,
-    }));
 
     // Divider
     properties.insert::<Divider, _>(ContentColor::new(ZYNC_500));
@@ -205,6 +201,10 @@ pub fn default_property_set_legacy() -> DefaultProperties {
     properties.insert::<Checkbox, _>(DisabledBackground(Background::Color(Color::BLACK)));
     properties.insert::<Checkbox, _>(HoveredBorderColor(BorderColor { color: ZYNC_500 }));
     properties.insert::<Checkbox, _>(FocusedBorderColor(BorderColor { color: FOCUS_COLOR }));
+    properties.insert::<Checkbox, _>(CheckmarkColor { color: TEXT_COLOR });
+    properties.insert::<Checkbox, _>(DisabledCheckmarkColor(CheckmarkColor {
+        color: DISABLED_TEXT_COLOR,
+    }));
 
     // Switch
     properties.insert::<Switch, _>(ActiveBackground(Background::Color(ZYNC_600)));

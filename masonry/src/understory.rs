@@ -14,6 +14,7 @@ use std::vec::Vec;
 use masonry_core::properties::{Background, BorderColor, ClassId};
 use masonry_core::style::{BoxPaintStyle, StylePseudos, StyleResolver, StyleValue};
 
+use crate::peniko::color::{AlphaColor, Srgb};
 use understory_property::{PropertyMetadataBuilder, PropertyRegistry};
 use understory_style::{
     IdSet, PseudoClassId, Selector, SelectorInputs, StyleBuilder, StyleCascade,
@@ -25,6 +26,7 @@ use understory_style::{
 pub struct UnderstoryBoxStyleResolver {
     background: understory_property::Property<Background>,
     border_color: understory_property::Property<BorderColor>,
+    foreground_color: understory_property::Property<AlphaColor<Srgb>>,
     cascade: StyleCascade,
     type_tags: Mutex<TypeTagState>,
     class_cache: Mutex<HashMap<Arc<[ClassId]>, Arc<[understory_style::ClassId]>>>,
@@ -32,7 +34,7 @@ pub struct UnderstoryBoxStyleResolver {
     // Before making styles/theme rules dynamic, add:
     // - a size cap + eviction strategy, and/or
     // - an explicit epoch in the cache key so callers can invalidate on theme changes.
-    computed_box_paint_cache: Mutex<HashMap<BoxPaintCacheKey, CachedBoxPaintStyle>>,
+    computed_paint_cache: Mutex<HashMap<BoxPaintCacheKey, CachedPaintStyle>>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -43,9 +45,10 @@ struct BoxPaintCacheKey {
 }
 
 #[derive(Clone, Debug)]
-struct CachedBoxPaintStyle {
+struct CachedPaintStyle {
     background: Option<Arc<Background>>,
     border_color: Option<BorderColor>,
+    foreground_color: Option<AlphaColor<Srgb>>,
 }
 
 #[derive(Debug, Default)]
@@ -67,6 +70,10 @@ impl UnderstoryBoxStyleResolver {
             "BorderColor",
             PropertyMetadataBuilder::new(BorderColor::default()).build(),
         );
+        let foreground_color = registry.register(
+            "ForegroundColor",
+            PropertyMetadataBuilder::new(AlphaColor::<Srgb>::BLACK).build(),
+        );
 
         let empty_sheet = StyleSheetBuilder::new().build();
         let cascade = StyleCascadeBuilder::new()
@@ -76,10 +83,11 @@ impl UnderstoryBoxStyleResolver {
         Self {
             background,
             border_color,
+            foreground_color,
             cascade,
             type_tags: Mutex::new(TypeTagState::default()),
             class_cache: Mutex::new(HashMap::new()),
-            computed_box_paint_cache: Mutex::new(HashMap::new()),
+            computed_paint_cache: Mutex::new(HashMap::new()),
         }
     }
 
@@ -167,6 +175,12 @@ impl UnderstoryBoxStyleResolver {
                 },
             )
             .build();
+        let checkbox_fg = StyleBuilder::new()
+            .set(resolver.foreground_color, crate::theme::TEXT_COLOR)
+            .build();
+        let checkbox_disabled_fg = StyleBuilder::new()
+            .set(resolver.foreground_color, crate::theme::DISABLED_TEXT_COLOR)
+            .build();
         let switch_toggled_bg = StyleBuilder::new()
             .set(
                 resolver.background,
@@ -191,6 +205,22 @@ impl UnderstoryBoxStyleResolver {
             //
             // Order matters when multiple selectors apply; later rules win for equal specificity.
             // This is arranged so `:active` overrides `:toggled`, and `:disabled` overrides both.
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::default(),
+                },
+                checkbox_fg,
+            )
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::default(),
+                    required_pseudos: IdSet::from_ids([DISABLED]),
+                },
+                checkbox_disabled_fg,
+            )
             .rule(
                 Selector {
                     type_tag: Some(CHECKBOX),
@@ -295,31 +325,26 @@ impl UnderstoryBoxStyleResolver {
         cache.insert(Arc::clone(classes), Arc::clone(&mapped));
         mapped
     }
-}
 
-impl StyleResolver for UnderstoryBoxStyleResolver {
-    fn resolve_box_paint(
+    fn resolve_cached(
         &self,
         widget_type: TypeId,
         pseudos: StylePseudos,
         classes: &Arc<[ClassId]>,
-    ) -> BoxPaintStyle<'_> {
+    ) -> CachedPaintStyle {
         let cache_key = BoxPaintCacheKey {
             widget_type,
             pseudos,
             classes: Arc::clone(classes),
         };
         if let Some(cached) = self
-            .computed_box_paint_cache
+            .computed_paint_cache
             .lock()
             .expect("poisoned computed style cache lock")
             .get(&cache_key)
             .cloned()
         {
-            return BoxPaintStyle {
-                background: cached.background.map(StyleValue::Shared),
-                border_color: cached.border_color.map(StyleValue::Owned),
-            };
+            return cached;
         }
 
         let type_tag = self.type_tag_for(widget_type);
@@ -361,20 +386,48 @@ impl StyleResolver for UnderstoryBoxStyleResolver {
 
         let background_ref = self.cascade.get_value_ref(&inputs, self.background);
         let border_color_ref = self.cascade.get_value_ref(&inputs, self.border_color);
+        let foreground_ref = self
+            .cascade
+            .get_value_ref(&inputs, self.foreground_color)
+            .copied();
 
-        let cached = CachedBoxPaintStyle {
+        let cached = CachedPaintStyle {
             background: background_ref.map(|v| Arc::new(v.clone())),
             border_color: border_color_ref.copied(),
+            foreground_color: foreground_ref,
         };
-        self.computed_box_paint_cache
+        self.computed_paint_cache
             .lock()
             .expect("poisoned computed style cache lock")
             .insert(cache_key, cached.clone());
+
+        cached
+    }
+}
+
+impl StyleResolver for UnderstoryBoxStyleResolver {
+    fn resolve_box_paint(
+        &self,
+        widget_type: TypeId,
+        pseudos: StylePseudos,
+        classes: &Arc<[ClassId]>,
+    ) -> BoxPaintStyle<'_> {
+        let cached = self.resolve_cached(widget_type, pseudos, classes);
 
         BoxPaintStyle {
             background: cached.background.map(StyleValue::Shared),
             border_color: cached.border_color.map(StyleValue::Owned),
         }
+    }
+
+    fn resolve_foreground_color(
+        &self,
+        widget_type: TypeId,
+        pseudos: StylePseudos,
+        classes: &Arc<[ClassId]>,
+    ) -> Option<StyleValue<'_, AlphaColor<Srgb>>> {
+        let cached = self.resolve_cached(widget_type, pseudos, classes);
+        cached.foreground_color.map(StyleValue::Owned)
     }
 }
 
@@ -473,5 +526,29 @@ mod tests {
                 color: crate::theme::ACCENT_COLOR
             })
         );
+    }
+
+    #[test]
+    fn checkbox_foreground_color_applies() {
+        let resolver = UnderstoryBoxStyleResolver::new_default();
+        let classes: Arc<[ClassId]> = Arc::from([]);
+
+        let fg = resolver
+            .resolve_foreground_color(
+                TypeId::of::<crate::widgets::Checkbox>(),
+                StylePseudos::EMPTY,
+                &classes,
+            )
+            .map(|v| *v.as_ref());
+        assert_eq!(fg, Some(crate::theme::TEXT_COLOR));
+
+        let fg_disabled = resolver
+            .resolve_foreground_color(
+                TypeId::of::<crate::widgets::Checkbox>(),
+                StylePseudos::DISABLED,
+                &classes,
+            )
+            .map(|v| *v.as_ref());
+        assert_eq!(fg_disabled, Some(crate::theme::DISABLED_TEXT_COLOR));
     }
 }
