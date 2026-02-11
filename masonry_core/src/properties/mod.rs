@@ -7,6 +7,7 @@ mod background;
 mod border_color;
 mod border_width;
 mod box_shadow;
+mod classes;
 mod corner_radius;
 mod dimensions;
 mod padding;
@@ -19,6 +20,7 @@ pub use background::*;
 pub use border_color::*;
 pub use border_width::*;
 pub use box_shadow::*;
+pub use classes::*;
 pub use corner_radius::*;
 pub use dimensions::*;
 pub use padding::*;
@@ -31,6 +33,7 @@ pub(crate) fn core_property_changed(ctx: &mut UpdateCtx<'_>, property_type: Type
     //       However, it affects the size of the paint rect, which is handled in layout.
     if Dimensions::matches(property_type)
         || BoxShadow::matches(property_type)
+        || Classes::matches(property_type)
         || BorderWidth::matches(property_type)
         || CornerRadius::matches(property_type)
         || Padding::matches(property_type)
