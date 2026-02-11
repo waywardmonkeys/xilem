@@ -38,7 +38,7 @@ use crate::passes::update::{
 };
 use crate::passes::{PassTracing, recurse_on_children};
 use crate::properties::Dimensions;
-use crate::style::{BoxStyleResolver, StyleResolver};
+use crate::style::StyleResolver;
 
 /// We ensure that any valid initial IME area is sent to the platform by storing an invalid initial
 /// IME area as the `last_sent_ime_area`.
@@ -114,7 +114,7 @@ pub(crate) struct RenderRootState {
     pub(crate) scroll_request_targets: Vec<(WidgetId, Rect)>,
 
     /// Optional embedder-provided resolver for pseudo/class driven style overrides.
-    pub(crate) box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+    pub(crate) style_resolver: Option<Rc<dyn StyleResolver>>,
 
     /// List of ancestors of the currently hovered widget.
     pub(crate) hovered_path: Vec<WidgetId>,
@@ -296,7 +296,7 @@ pub enum RenderRootSignal {
 
 #[cfg(test)]
 pub(crate) fn test_render_root_state_for_paint(
-    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+    style_resolver: Option<Rc<dyn StyleResolver>>,
 ) -> RenderRootState {
     RenderRootState {
         signal_sink: Box::new(|_signal: RenderRootSignal| {}),
@@ -307,7 +307,7 @@ pub(crate) fn test_render_root_state_for_paint(
         focus_fallback: None,
         window_focused: true,
         scroll_request_targets: Vec::new(),
-        box_style_resolver,
+        style_resolver,
         hovered_path: Vec::new(),
         active_path: Vec::new(),
         pointer_capture_target: None,
@@ -394,7 +394,7 @@ impl RenderRoot {
                 focus_fallback: None,
                 window_focused: true,
                 scroll_request_targets: Vec::new(),
-                box_style_resolver: None,
+                style_resolver: None,
                 hovered_path: Vec::new(),
                 active_path: Vec::new(),
                 pointer_capture_target: None,
@@ -619,10 +619,6 @@ impl RenderRoot {
     /// Embedders should express these stateful overrides via the resolver instead.
     ///
     /// Setting or changing the resolver requests a full redraw.
-    pub fn set_box_style_resolver(&mut self, resolver: Option<Rc<dyn BoxStyleResolver>>) {
-        self.set_style_resolver(resolver);
-    }
-
     /// Sets the embedder-provided style resolver.
     ///
     /// This is currently used for box painting (background/border), but is intended to grow to
@@ -634,7 +630,7 @@ impl RenderRoot {
     ///
     /// Setting or changing the resolver requests a full redraw.
     pub fn set_style_resolver(&mut self, resolver: Option<Rc<dyn StyleResolver>>) {
-        self.global_state.box_style_resolver = resolver;
+        self.global_state.style_resolver = resolver;
         self.request_render_all();
     }
 

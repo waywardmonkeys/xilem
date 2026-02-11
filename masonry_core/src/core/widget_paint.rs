@@ -38,9 +38,9 @@ impl<'a> PrePaintProps<'a> {
         let classes = props.get::<Classes>();
         let classes = classes.as_arc_slice();
         let global_state = &*ctx.global_state;
-        let has_style_resolver = global_state.box_style_resolver.is_some();
+        let has_style_resolver = global_state.style_resolver.is_some();
         let style = global_state
-            .box_style_resolver
+            .style_resolver
             .as_deref()
             .map(|r| r.resolve_box_paint(ctx.widget_type, pseudos, &classes))
             .unwrap_or_default();
@@ -195,12 +195,12 @@ mod tests {
         ActiveBackground, Background, BorderColor, ClassId, Classes, DisabledBackground,
         HoveredBorderColor,
     };
-    use crate::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos};
+    use crate::style::{BoxPaintStyle, StylePseudos, StyleResolver};
 
     #[derive(Debug)]
     struct EmptyResolver;
 
-    impl BoxStyleResolver for EmptyResolver {
+    impl StyleResolver for EmptyResolver {
         fn resolve_box_paint(
             &self,
             _widget_type: TypeId,

@@ -200,9 +200,6 @@ pub trait StyleResolver {
     ) -> BoxPaintStyle<'_>;
 }
 
-#[deprecated(note = "renamed to `StyleResolver`")]
-pub use StyleResolver as BoxStyleResolver;
-
 #[cfg(test)]
 mod tests {
     use super::*;
