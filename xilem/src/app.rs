@@ -176,7 +176,7 @@ where
             .unwrap_or_else(default_property_set_stylesheet);
         let (driver, windows) =
             self.into_driver_and_windows(move |event| proxy.send_event(event).map_err(|err| err.0));
-        masonry_winit::app::run_with_box_style_resolver(
+        masonry_winit::app::run_with_style_resolver(
             event_loop,
             windows,
             driver,

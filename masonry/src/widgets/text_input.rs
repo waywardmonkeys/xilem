@@ -290,7 +290,7 @@ impl Widget for TextInput {
         // We want to show a focus border if our child TextArea is focused
         //
         // In the stylesheet theme, this is expected to be handled via `:focus-within`.
-        if !ctx.has_box_style_resolver()
+        if !ctx.has_style_resolver()
             && ctx.has_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {

@@ -112,7 +112,7 @@ fn main() {
     let event_loop = masonry_winit::app::EventLoop::with_user_event()
         .build()
         .unwrap();
-    masonry_winit::app::run_with_box_style_resolver(
+    masonry_winit::app::run_with_style_resolver(
         event_loop,
         vec![
             NewWindow::new_with_id(
