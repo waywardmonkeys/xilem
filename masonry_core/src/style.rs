@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use crate::core::PropertiesRef;
+use crate::core::{PropertiesMut, PropertiesRef};
 use crate::properties::{ClassId, Classes};
 
 /// A stable identifier for an element "type" in style selectors.
@@ -129,7 +129,7 @@ impl StyleSignature {
     pub fn from_props_mut(
         type_tag: TypeTag,
         pseudos: StylePseudos,
-        props: &crate::core::PropertiesMut<'_>,
+        props: &PropertiesMut<'_>,
     ) -> Self {
         Self::new(type_tag, pseudos, props.get::<Classes>())
     }
