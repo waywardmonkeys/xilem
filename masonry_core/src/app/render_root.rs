@@ -294,6 +294,50 @@ pub enum RenderRootSignal {
     RepositionLayer(WidgetId, Point),
 }
 
+#[cfg(test)]
+pub(crate) fn test_render_root_state_for_paint(
+    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+) -> RenderRootState {
+    RenderRootState {
+        signal_sink: Box::new(|_signal: RenderRootSignal| {}),
+        focused_widget: None,
+        focused_path: Vec::new(),
+        next_focused_widget: None,
+        focus_anchor: None,
+        focus_fallback: None,
+        window_focused: true,
+        scroll_request_targets: Vec::new(),
+        box_style_resolver,
+        hovered_path: Vec::new(),
+        active_path: Vec::new(),
+        pointer_capture_target: None,
+        cursor_icon: CursorIcon::Default,
+        font_context: FontContext {
+            collection: Collection::new(CollectionOptions {
+                system_fonts: false,
+                ..Default::default()
+            }),
+            source_cache: SourceCache::default(),
+        },
+        fonts_changed: false,
+        text_layout_context: LayoutContext::new(),
+        mutate_callbacks: Vec::new(),
+        is_ime_active: false,
+        last_sent_ime_area: INVALID_IME_AREA,
+        scene_cache: HashMap::new(),
+        widget_tags: HashMap::new(),
+        needs_pointer_pass: false,
+        trace: PassTracing::from_env(),
+        inspector_state: InspectorState {
+            is_picking_widget: false,
+            hovered_widget: None,
+        },
+        access_tree_active: false,
+        scale_factor: 1.0,
+        debug_paint: false,
+    }
+}
+
 /// State of the widget inspector. Useful for debugging.
 ///
 /// Widget inspector is WIP. It should get its own standalone documentation.
@@ -569,6 +613,10 @@ impl RenderRoot {
     /// When set, Masonry Core consults this resolver during `pre_paint` to allow pseudo/class
     /// driven styling (for example `:hover` background changes) without widget-specific state
     /// properties.
+    ///
+    /// When a resolver is installed, Masonry Core does not consult legacy "state variant"
+    /// properties (such as `DisabledBackground` or `HoveredBorderColor`) during `pre_paint`.
+    /// Embedders should express these stateful overrides via the resolver instead.
     ///
     /// Setting or changing the resolver requests a full redraw.
     pub fn set_box_style_resolver(&mut self, resolver: Option<Rc<dyn BoxStyleResolver>>) {

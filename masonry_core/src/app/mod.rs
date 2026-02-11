@@ -14,3 +14,6 @@ pub use tracing_backend::{
 };
 
 pub(crate) use render_root::{MutateCallback, RenderRootState};
+
+#[cfg(test)]
+pub(crate) use render_root::test_render_root_state_for_paint;

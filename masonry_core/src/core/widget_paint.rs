@@ -54,6 +54,7 @@ impl<'a> PrePaintProps<'a> {
         let pseudos = ctx.style_pseudos();
         let classes = props.get::<Classes>();
         let classes = classes.as_arc_slice();
+        let has_style_resolver = ctx.global_state.box_style_resolver.is_some();
         let style = ctx
             .global_state
             .box_style_resolver
@@ -65,11 +66,13 @@ impl<'a> PrePaintProps<'a> {
             Resolved::Borrowed(props.get::<Background>())
         } else if let Some(bg) = style.background {
             Resolved::Owned(bg)
-        } else if ctx.is_disabled()
+        } else if !has_style_resolver
+            && ctx.is_disabled()
             && let Some(db) = props.get_defined::<DisabledBackground>()
         {
             Resolved::Borrowed(&db.0)
-        } else if ctx.is_active()
+        } else if !has_style_resolver
+            && ctx.is_active()
             && let Some(ab) = props.get_defined::<ActiveBackground>()
         {
             Resolved::Borrowed(&ab.0)
@@ -81,11 +84,13 @@ impl<'a> PrePaintProps<'a> {
             Resolved::Borrowed(props.get::<BorderColor>())
         } else if let Some(color) = style.border_color {
             Resolved::Owned(color)
-        } else if ctx.is_focus_target()
+        } else if !has_style_resolver
+            && ctx.is_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
             Resolved::Borrowed(&fb.0)
-        } else if ctx.is_hovered()
+        } else if !has_style_resolver
+            && ctx.is_hovered()
             && let Some(hb) = props.get_defined::<HoveredBorderColor>()
         {
             Resolved::Borrowed(&hb.0)
@@ -186,4 +191,168 @@ pub fn paint_border(
         None,
         &border_rect,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::PrePaintProps;
+
+    use std::any::TypeId;
+    use std::rc::Rc;
+    use std::sync::Arc;
+
+    use tree_arena::TreeArena;
+
+    use crate::app::test_render_root_state_for_paint;
+    use crate::core::{
+        DefaultProperties, PaintCtx, Properties, PropertiesRef, WidgetArenaNode, WidgetId,
+        WidgetOptions, WidgetState,
+    };
+    use crate::properties::{
+        ActiveBackground, Background, BorderColor, ClassId, Classes, DisabledBackground,
+        HoveredBorderColor,
+    };
+    use crate::style::{BoxPaintStyle, BoxStyleResolver, StylePseudos};
+
+    #[derive(Debug)]
+    struct EmptyResolver;
+
+    impl BoxStyleResolver for EmptyResolver {
+        fn resolve_box_paint(
+            &self,
+            _widget_type: TypeId,
+            _pseudos: StylePseudos,
+            _classes: &Arc<[ClassId]>,
+        ) -> BoxPaintStyle {
+            BoxPaintStyle::default()
+        }
+    }
+
+    #[test]
+    fn style_resolver_disables_legacy_state_fallbacks() {
+        let widget_id = WidgetId::next();
+
+        let mut widget_state = WidgetState::new(
+            widget_id,
+            "dummy",
+            WidgetOptions::default(),
+            TypeId::of::<()>(),
+            #[cfg(debug_assertions)]
+            "()",
+        );
+        widget_state.is_disabled = true;
+        widget_state.is_hovered = true;
+        widget_state.is_active = true;
+
+        let base_bg = Background::Color(crate::peniko::Color::from_rgb8(1, 2, 3));
+        let base_border = BorderColor {
+            color: crate::peniko::Color::from_rgb8(4, 5, 6),
+        };
+
+        let legacy_disabled_bg = Background::Color(crate::peniko::Color::from_rgb8(10, 11, 12));
+        let legacy_active_bg = Background::Color(crate::peniko::Color::from_rgb8(13, 14, 15));
+        let legacy_hover_border = BorderColor {
+            color: crate::peniko::Color::from_rgb8(16, 17, 18),
+        };
+
+        let mut props = Properties::new();
+        props.insert(DisabledBackground(legacy_disabled_bg.clone()));
+        props.insert(ActiveBackground(legacy_active_bg.clone()));
+        props.insert(HoveredBorderColor(legacy_hover_border));
+        // Ensure Classes exists so `PrePaintProps::fetch` doesn't depend on defaults.
+        props.insert(Classes::default());
+
+        let mut defaults = DefaultProperties::new();
+        defaults.dummy_map.insert(base_bg.clone());
+        defaults.dummy_map.insert(base_border);
+
+        let props_ref = PropertiesRef {
+            map: &props.map,
+            default_map: &defaults.dummy_map,
+        };
+
+        let mut arena: TreeArena<WidgetArenaNode> = TreeArena::new();
+        let children = arena.roots_mut();
+
+        // With a resolver installed, legacy state properties should be ignored.
+        let mut state_with_resolver =
+            test_render_root_state_for_paint(Some(Rc::new(EmptyResolver)));
+        let mut ctx = PaintCtx {
+            global_state: &mut state_with_resolver,
+            widget_state: &widget_state,
+            widget_type: TypeId::of::<()>(),
+            children,
+        };
+
+        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        assert_eq!(p.background.as_ref(), &base_bg);
+        assert_ne!(p.background.as_ref(), &legacy_disabled_bg);
+        assert_ne!(p.background.as_ref(), &legacy_active_bg);
+        assert_eq!(
+            p.border_color.as_ref(),
+            &BorderColor {
+                color: crate::peniko::Color::from_rgb8(4, 5, 6)
+            }
+        );
+
+        // Without a resolver, the legacy state fallbacks apply.
+        let mut state_without_resolver = test_render_root_state_for_paint(None);
+        let children = arena.roots_mut();
+        let mut ctx = PaintCtx {
+            global_state: &mut state_without_resolver,
+            widget_state: &widget_state,
+            widget_type: TypeId::of::<()>(),
+            children,
+        };
+        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        assert_eq!(p.background.as_ref(), &legacy_disabled_bg);
+        assert_eq!(
+            p.border_color.as_ref(),
+            &BorderColor {
+                color: crate::peniko::Color::from_rgb8(16, 17, 18)
+            }
+        );
+    }
+
+    #[test]
+    fn style_resolver_still_allows_legacy_local_values() {
+        let widget_id = WidgetId::next();
+        let widget_state = WidgetState::new(
+            widget_id,
+            "dummy",
+            WidgetOptions::default(),
+            TypeId::of::<()>(),
+            #[cfg(debug_assertions)]
+            "()",
+        );
+
+        let local_bg = Background::Color(crate::peniko::Color::from_rgb8(50, 51, 52));
+        let local_border = BorderColor {
+            color: crate::peniko::Color::from_rgb8(53, 54, 55),
+        };
+
+        let mut props = Properties::new();
+        props.insert(local_bg.clone());
+        props.insert(local_border);
+        props.insert(Classes::default());
+
+        let defaults = DefaultProperties::new();
+        let props_ref = PropertiesRef {
+            map: &props.map,
+            default_map: &defaults.dummy_map,
+        };
+
+        let mut arena: TreeArena<WidgetArenaNode> = TreeArena::new();
+        let children = arena.roots_mut();
+        let mut state = test_render_root_state_for_paint(Some(Rc::new(EmptyResolver)));
+        let mut ctx = PaintCtx {
+            global_state: &mut state,
+            widget_state: &widget_state,
+            widget_type: TypeId::of::<()>(),
+            children,
+        };
+
+        let p = PrePaintProps::fetch(&mut ctx, &props_ref);
+        assert_eq!(p.background.as_ref(), &local_bg);
+    }
 }
