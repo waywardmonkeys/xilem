@@ -3,6 +3,7 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, mpsc};
 
@@ -16,6 +17,7 @@ use masonry_core::core::{
 };
 use masonry_core::kurbo::Affine;
 use masonry_core::peniko::Color;
+use masonry_core::style::BoxStyleResolver;
 use masonry_core::util::Instant;
 use masonry_core::vello::{
     AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene, wgpu,
@@ -144,26 +146,30 @@ impl Window {
         base_color: Color,
         size: PhysicalSize<u32>,
         scale_factor: f64,
+        box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
     ) -> Self {
+        let mut render_root = RenderRoot::new(
+            root_widget,
+            move |signal| {
+                signal_sender.clone().send((window_id, signal)).unwrap();
+            },
+            RenderRootOptions {
+                default_properties,
+                use_system_fonts: true,
+                size_policy: WindowSizePolicy::User,
+                size,
+                scale_factor,
+                test_font: None,
+            },
+        );
+        render_root.set_box_style_resolver(box_style_resolver);
+
         Self {
             id: window_id,
             handle,
             accesskit_adapter,
             event_reducer: WindowEventReducer::default(),
-            render_root: RenderRoot::new(
-                root_widget,
-                move |signal| {
-                    signal_sender.clone().send((window_id, signal)).unwrap();
-                },
-                RenderRootOptions {
-                    default_properties,
-                    use_system_fonts: true,
-                    size_policy: WindowSizePolicy::User,
-                    size,
-                    scale_factor,
-                    test_font: None,
-                },
-            ),
+            render_root,
             base_color,
         }
     }
@@ -216,6 +222,7 @@ pub struct MasonryState<'a> {
 
     signal_sender: Sender<(WindowId, RenderRootSignal)>,
     default_properties: Arc<DefaultProperties>,
+    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
     pub(crate) exit: bool,
     /// Windows that are scheduled to be created in the next resumed event.
     new_windows: Vec<NewWindow>,
@@ -271,6 +278,24 @@ pub fn run_with(
     app_driver: impl AppDriver + 'static,
     default_properties: DefaultProperties,
 ) -> Result<(), EventLoopError> {
+    run_with_box_style_resolver(
+        event_loop,
+        new_windows,
+        app_driver,
+        default_properties,
+        None,
+    )
+}
+
+/// Runs the app with the provided event loop to completion, with an optional box style resolver.
+pub fn run_with_box_style_resolver(
+    // This is passed in mostly to allow configuring the Android app
+    event_loop: EventLoop,
+    new_windows: Vec<NewWindow>,
+    app_driver: impl AppDriver + 'static,
+    default_properties: DefaultProperties,
+    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+) -> Result<(), EventLoopError> {
     // If no tracing subscriber has been set before, we set our own. If one has
     // already been set, we get an error which we swallow.
     // By now, we're about to take control of the event loop. The user is unlikely
@@ -278,10 +303,11 @@ pub fn run_with(
     let _ = masonry_core::app::try_init_tracing();
 
     let mut main_state = MainState {
-        masonry_state: MasonryState::new(
+        masonry_state: MasonryState::new_with_box_style_resolver(
             event_loop.create_proxy(),
             new_windows,
             default_properties,
+            box_style_resolver,
         ),
         app_driver: Box::new(app_driver),
     };
@@ -364,6 +390,16 @@ impl MasonryState<'_> {
         new_windows: Vec<NewWindow>,
         default_properties: DefaultProperties,
     ) -> Self {
+        Self::new_with_box_style_resolver(event_loop_proxy, new_windows, default_properties, None)
+    }
+
+    /// Creates the Masonry application's composition root with an optional box style resolver.
+    pub fn new_with_box_style_resolver(
+        event_loop_proxy: EventLoopProxy,
+        new_windows: Vec<NewWindow>,
+        default_properties: DefaultProperties,
+        box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+    ) -> Self {
         let render_cx = RenderContext::new();
 
         let (signal_sender, signal_receiver) = mpsc::channel::<(WindowId, RenderRootSignal)>();
@@ -397,6 +433,7 @@ impl MasonryState<'_> {
 
             signal_sender,
             default_properties: Arc::new(default_properties),
+            box_style_resolver,
             exit: false,
             new_windows,
             need_first_frame: Vec::new(),
@@ -544,6 +581,7 @@ impl MasonryState<'_> {
             new_window.base_color,
             size,
             scale_factor,
+            self.box_style_resolver.clone(),
         );
 
         tracing::debug!(window_id = window.id.trace(), handle=?handle_id, "creating window");

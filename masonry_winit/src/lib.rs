@@ -98,7 +98,7 @@ pub mod app {
     pub use super::app_driver::{AppDriver, DriverCtx, WgpuContext, WgpuLimits, WindowId};
     pub use super::event_loop_runner::{
         EventLoop, EventLoopBuilder, EventLoopProxy, MasonryState, MasonryUserEvent, NewWindow,
-        Window, run, run_with,
+        Window, run, run_with, run_with_box_style_resolver,
     };
 
     pub(crate) use super::convert_winit_event::{
