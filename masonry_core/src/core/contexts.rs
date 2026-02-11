@@ -23,7 +23,7 @@ use crate::kurbo::{Affine, Axis, Insets, Point, Rect, Size, Vec2};
 use crate::layout::{LayoutSize, LenDef, SizeDef};
 use crate::passes::layout::{place_widget, resolve_length, resolve_size, run_layout_on};
 use crate::peniko::Color;
-use crate::style::StylePseudos;
+use crate::style::{StylePseudos, StyleSignature, TypeTag};
 use crate::util::{TypeSet, get_debug_color};
 
 // Note - Most methods defined in this file revolve around `WidgetState` fields.
@@ -1365,6 +1365,20 @@ impl_context_method!(
                 self.is_focus_target(),
                 self.is_disabled(),
             )
+        }
+
+        /// A compact signature for style selection for this widget.
+        ///
+        /// This combines `type_tag`, this widget's current [`style_pseudos`](Self::style_pseudos),
+        /// and the widget's [`Classes`](crate::properties::Classes) from `props`.
+        ///
+        /// This is intended for use by embedders when caching resolved style bundles.
+        pub fn style_signature(
+            &self,
+            type_tag: TypeTag,
+            props: &PropertiesRef<'_>,
+        ) -> StyleSignature {
+            StyleSignature::from_props(type_tag, self.style_pseudos(), props)
         }
 
         /// Whether this widget is [stashed].

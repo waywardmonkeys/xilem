@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use crate::core::PropertiesRef;
 use crate::properties::{ClassId, Classes};
 
 /// A stable identifier for an element "type" in style selectors.
@@ -110,11 +111,21 @@ impl StyleSignature {
             classes: classes.as_arc_slice(),
         }
     }
+
+    /// Creates a signature using [`Classes`] from the given widget properties.
+    ///
+    /// This reads the [`Classes`] property from `props`, which will fall back to any default
+    /// `Classes` and then to the static default.
+    #[must_use]
+    pub fn from_props(type_tag: TypeTag, pseudos: StylePseudos, props: &PropertiesRef<'_>) -> Self {
+        Self::new(type_tag, pseudos, props.get::<Classes>())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::{DefaultProperties, Properties};
 
     #[test]
     fn pseudos_contains() {
@@ -123,5 +134,27 @@ mod tests {
         assert!(pseudos.contains(StylePseudos::FOCUS));
         assert!(!pseudos.contains(StylePseudos::ACTIVE));
         assert!(!pseudos.contains(StylePseudos::DISABLED));
+    }
+
+    #[test]
+    fn signature_from_props_uses_classes_property() {
+        let a = ClassId(1);
+        let b = ClassId(2);
+
+        let mut props = Properties::new();
+        props.insert(Classes::from_ids([b, a]));
+        let defaults = DefaultProperties::new();
+        let props_ref = PropertiesRef {
+            map: &props.map,
+            default_map: &defaults.dummy_map,
+        };
+
+        let sig = StyleSignature::from_props(TypeTag(7), StylePseudos::EMPTY, &props_ref);
+        assert_eq!(sig.type_tag, TypeTag(7));
+        assert_eq!(sig.pseudos, StylePseudos::EMPTY);
+        assert_eq!(sig.classes.as_ref(), &[a, b]);
+
+        let stored_classes = props_ref.get::<Classes>();
+        assert!(Arc::ptr_eq(&sig.classes, &stored_classes.as_arc_slice()));
     }
 }
