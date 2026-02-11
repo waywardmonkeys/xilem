@@ -5,7 +5,7 @@ use std::any::TypeId;
 
 use crate::core::{FromDynWidget, MutateCtx, Property, Widget, WidgetId};
 use crate::kurbo::Affine;
-use crate::properties::core_property_changed;
+use crate::properties::{Classes, core_property_changed};
 
 /// A rich mutable reference to a [`Widget`].
 ///
@@ -112,6 +112,22 @@ impl<W: Widget + ?Sized> WidgetMut<'_, W> {
         core_property_changed(&mut ctx, property_type);
         self.widget.property_changed(&mut ctx, property_type);
         value
+    }
+
+    /// Sets this widget's [`Classes`] property.
+    ///
+    /// This is a convenience wrapper around [`insert_prop`](Self::insert_prop).
+    pub fn set_classes(&mut self, classes: Classes) -> Option<Classes> {
+        self.insert_prop(classes)
+    }
+
+    /// Clears this widget's local [`Classes`] property, if present.
+    ///
+    /// This does not affect any default classes.
+    ///
+    /// This is a convenience wrapper around [`remove_prop`](Self::remove_prop).
+    pub fn clear_classes(&mut self) -> Option<Classes> {
+        self.remove_prop::<Classes>()
     }
 
     /// Sets the local transform of this widget.
