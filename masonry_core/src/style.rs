@@ -24,6 +24,8 @@ pub enum StyleValue<'a, T> {
     Borrowed(&'a T),
     /// Owned value computed by a resolver.
     Owned(T),
+    /// Shared owned value (for caching).
+    Shared(Arc<T>),
 }
 
 impl<T> AsRef<T> for StyleValue<'_, T> {
@@ -31,6 +33,7 @@ impl<T> AsRef<T> for StyleValue<'_, T> {
         match self {
             Self::Borrowed(v) => v,
             Self::Owned(v) => v,
+            Self::Shared(v) => v.as_ref(),
         }
     }
 }
