@@ -260,7 +260,13 @@ impl Widget for Checkbox {
         let p = PrePaintProps::fetch(ctx, props);
 
         paint_box_shadow(scene, bbox, p.box_shadow, p.corner_radius);
-        paint_background(scene, bbox, p.background, p.border_width, p.corner_radius);
+        paint_background(
+            scene,
+            bbox,
+            p.background.as_ref(),
+            p.border_width,
+            p.corner_radius,
+        );
 
         // Paint focus indicator around the entire widget (box + label)
         if ctx.is_focus_target() || ctx.is_hovered() {
@@ -268,7 +274,7 @@ impl Widget for Checkbox {
 
             let focus_rect = bbox.inflate(2.0, 2.0);
 
-            let focus_color = p.border_color.color;
+            let focus_color = p.border_color.as_ref().color;
             let focus_width = 2.0;
             let focus_radius = 4.0;
 

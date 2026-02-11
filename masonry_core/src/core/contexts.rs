@@ -3,7 +3,7 @@
 
 //! The context types that are passed into various widget methods.
 
-use std::any::Any;
+use std::any::{Any, TypeId};
 use std::collections::hash_map::Entry;
 
 use accesskit::{NodeId, TreeUpdate};
@@ -139,6 +139,7 @@ pub struct ComposeCtx<'a> {
 pub struct PaintCtx<'a> {
     pub(crate) global_state: &'a mut RenderRootState,
     pub(crate) widget_state: &'a WidgetState,
+    pub(crate) widget_type: TypeId,
     pub(crate) children: ArenaMutList<'a, WidgetArenaNode>,
 }
 

@@ -47,6 +47,7 @@ fn paint_widget(
         let mut ctx = PaintCtx {
             global_state,
             widget_state: state,
+            widget_type: widget.type_id(),
             children: children.reborrow_mut(),
         };
         let props = PropertiesRef {

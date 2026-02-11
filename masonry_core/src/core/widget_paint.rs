@@ -7,9 +7,27 @@ use crate::core::{PaintCtx, PropertiesRef};
 use crate::kurbo::{Affine, Join, Rect, Stroke};
 use crate::peniko::Fill;
 use crate::properties::{
-    ActiveBackground, Background, BorderColor, BorderWidth, BoxShadow, CornerRadius,
+    ActiveBackground, Background, BorderColor, BorderWidth, BoxShadow, Classes, CornerRadius,
     DisabledBackground, FocusedBorderColor, HoveredBorderColor,
 };
+
+/// A reference to a value which may be owned or borrowed.
+#[derive(Clone, Debug)]
+pub enum Resolved<'a, T> {
+    /// Borrowed from widget properties/defaults.
+    Borrowed(&'a T),
+    /// Owned override computed by a style resolver.
+    Owned(T),
+}
+
+impl<T> AsRef<T> for Resolved<'_, T> {
+    fn as_ref(&self) -> &T {
+        match self {
+            Self::Borrowed(v) => v,
+            Self::Owned(v) => v,
+        }
+    }
+}
 
 /// References to common pre-paint properties.
 pub struct PrePaintProps<'a> {
@@ -18,13 +36,13 @@ pub struct PrePaintProps<'a> {
     /// Background.
     ///
     /// Considers disabled and active state.
-    pub background: &'a Background,
+    pub background: Resolved<'a, Background>,
     /// Border width.
     pub border_width: &'a BorderWidth,
     /// Border color.
     ///
     /// Considers focus and hovered state.
-    pub border_color: &'a BorderColor,
+    pub border_color: Resolved<'a, BorderColor>,
     /// Corner radius,
     pub corner_radius: &'a CornerRadius,
 }
@@ -33,28 +51,47 @@ impl<'a> PrePaintProps<'a> {
     /// Returns common pre-paint properties based on widget state.
     pub fn fetch(ctx: &mut PaintCtx<'_>, props: &'a PropertiesRef<'_>) -> Self {
         let box_shadow = props.get::<BoxShadow>();
-        let background = if ctx.is_disabled()
+        let pseudos = ctx.style_pseudos();
+        let classes = props.get::<Classes>();
+        let style = ctx
+            .global_state
+            .box_style_resolver
+            .as_deref()
+            .map(|r| r.resolve_box_paint(ctx.widget_type, pseudos, classes.as_slice()))
+            .unwrap_or_default();
+
+        let background = if props.contains::<Background>() {
+            Resolved::Borrowed(props.get::<Background>())
+        } else if let Some(bg) = style.background {
+            Resolved::Owned(bg)
+        } else if ctx.is_disabled()
             && let Some(db) = props.get_defined::<DisabledBackground>()
         {
-            &db.0
+            Resolved::Borrowed(&db.0)
         } else if ctx.is_active()
             && let Some(ab) = props.get_defined::<ActiveBackground>()
         {
-            &ab.0
+            Resolved::Borrowed(&ab.0)
         } else {
-            props.get::<Background>()
+            Resolved::Borrowed(props.get::<Background>())
         };
-        let border_color = if ctx.is_focus_target()
+
+        let border_color = if props.contains::<BorderColor>() {
+            Resolved::Borrowed(props.get::<BorderColor>())
+        } else if let Some(color) = style.border_color {
+            Resolved::Owned(color)
+        } else if ctx.is_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
-            &fb.0
+            Resolved::Borrowed(&fb.0)
         } else if ctx.is_hovered()
             && let Some(hb) = props.get_defined::<HoveredBorderColor>()
         {
-            &hb.0
+            Resolved::Borrowed(&hb.0)
         } else {
-            props.get::<BorderColor>()
+            Resolved::Borrowed(props.get::<BorderColor>())
         };
+
         let border_width = props.get::<BorderWidth>();
         let corner_radius = props.get::<CornerRadius>();
 
@@ -74,8 +111,20 @@ pub fn pre_paint(ctx: &mut PaintCtx<'_>, props: &PropertiesRef<'_>, scene: &mut 
     let p = PrePaintProps::fetch(ctx, props);
 
     paint_box_shadow(scene, bbox, p.box_shadow, p.corner_radius);
-    paint_background(scene, bbox, p.background, p.border_width, p.corner_radius);
-    paint_border(scene, bbox, p.border_color, p.border_width, p.corner_radius);
+    paint_background(
+        scene,
+        bbox,
+        p.background.as_ref(),
+        p.border_width,
+        p.corner_radius,
+    );
+    paint_border(
+        scene,
+        bbox,
+        p.border_color.as_ref(),
+        p.border_width,
+        p.corner_radius,
+    );
 }
 
 /// Paints the widget's box shadow.

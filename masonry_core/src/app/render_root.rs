@@ -37,6 +37,7 @@ use crate::passes::update::{
 };
 use crate::passes::{PassTracing, recurse_on_children};
 use crate::properties::Dimensions;
+use crate::style::BoxStyleResolver;
 
 /// We ensure that any valid initial IME area is sent to the platform by storing an invalid initial
 /// IME area as the `last_sent_ime_area`.
@@ -110,6 +111,9 @@ pub(crate) struct RenderRootState {
     /// The `Rect` is the area it wants to be scrolled into view,
     /// in its border-box coordinate space.
     pub(crate) scroll_request_targets: Vec<(WidgetId, Rect)>,
+
+    /// Optional embedder-provided resolver for pseudo/class driven style overrides.
+    pub(crate) box_style_resolver: Option<Arc<dyn BoxStyleResolver>>,
 
     /// List of ancestors of the currently hovered widget.
     pub(crate) hovered_path: Vec<WidgetId>,
@@ -345,6 +349,7 @@ impl RenderRoot {
                 focus_fallback: None,
                 window_focused: true,
                 scroll_request_targets: Vec::new(),
+                box_style_resolver: None,
                 hovered_path: Vec::new(),
                 active_path: Vec::new(),
                 pointer_capture_target: None,
@@ -556,6 +561,18 @@ impl RenderRoot {
     /// Returns the current icon that the mouse should display.
     pub fn cursor_icon(&self) -> CursorIcon {
         self.global_state.cursor_icon
+    }
+
+    /// Sets the embedder-provided box style resolver.
+    ///
+    /// When set, Masonry Core consults this resolver during `pre_paint` to allow pseudo/class
+    /// driven styling (for example `:hover` background changes) without widget-specific state
+    /// properties.
+    ///
+    /// Setting or changing the resolver requests a full redraw.
+    pub fn set_box_style_resolver(&mut self, resolver: Option<Arc<dyn BoxStyleResolver>>) {
+        self.global_state.box_style_resolver = resolver;
+        self.request_render_all();
     }
 
     // --- MARK: ACCESS WIDGETS

@@ -10,9 +10,11 @@
 //! This module defines compact, allocation-free representations that an embedder can use
 //! to build style selector inputs and caching keys.
 
+use std::any::TypeId;
 use std::sync::Arc;
 
 use crate::core::{PropertiesMut, PropertiesRef};
+use crate::properties::{Background, BorderColor};
 use crate::properties::{ClassId, Classes};
 
 /// A stable identifier for an element "type" in style selectors.
@@ -133,6 +135,36 @@ impl StyleSignature {
     ) -> Self {
         Self::new(type_tag, pseudos, props.get::<Classes>())
     }
+}
+
+/// Pseudo-driven overrides for box painting.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct BoxPaintStyle {
+    /// If set, overrides the resolved background.
+    pub background: Option<Background>,
+    /// If set, overrides the resolved border color.
+    pub border_color: Option<BorderColor>,
+}
+
+/// A hook for embedders to provide style-driven values.
+///
+/// Masonry Core does not include a style system, but it can consult this resolver during painting.
+/// This enables CSS/Understory-style selectors and cascades to drive visuals without encoding
+/// widget-specific "state properties" into the core.
+pub trait BoxStyleResolver: Send + Sync {
+    /// Resolves pseudo/class-driven box paint overrides for a widget.
+    ///
+    /// - `widget_type` is the Rust [`TypeId`] for the widget type.
+    /// - `pseudos` is the widget's current pseudoclass set.
+    /// - `classes` is the sorted, deduplicated [`Classes`](crate::properties::Classes) list.
+    ///
+    /// Returning [`BoxPaintStyle::default()`] indicates "no overrides".
+    fn resolve_box_paint(
+        &self,
+        widget_type: TypeId,
+        pseudos: StylePseudos,
+        classes: &[ClassId],
+    ) -> BoxPaintStyle;
 }
 
 #[cfg(test)]

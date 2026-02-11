@@ -290,12 +290,24 @@ impl Widget for TextInput {
         if ctx.has_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
-            p.border_color = &fb.0;
+            p.border_color = masonry_core::core::Resolved::Borrowed(&fb.0);
         }
 
         paint_box_shadow(scene, bbox, p.box_shadow, p.corner_radius);
-        paint_background(scene, bbox, p.background, p.border_width, p.corner_radius);
-        paint_border(scene, bbox, p.border_color, p.border_width, p.corner_radius);
+        paint_background(
+            scene,
+            bbox,
+            p.background.as_ref(),
+            p.border_width,
+            p.corner_radius,
+        );
+        paint_border(
+            scene,
+            bbox,
+            p.border_color.as_ref(),
+            p.border_width,
+            p.corner_radius,
+        );
     }
 
     fn paint(&mut self, _ctx: &mut PaintCtx<'_>, _props: &PropertiesRef<'_>, _scene: &mut Scene) {}
