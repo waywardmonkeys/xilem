@@ -151,7 +151,7 @@ pub struct BoxPaintStyle {
 /// Masonry Core does not include a style system, but it can consult this resolver during painting.
 /// This enables CSS/Understory-style selectors and cascades to drive visuals without encoding
 /// widget-specific "state properties" into the core.
-pub trait BoxStyleResolver: Send + Sync {
+pub trait BoxStyleResolver {
     /// Resolves pseudo/class-driven box paint overrides for a widget.
     ///
     /// - `widget_type` is the Rust [`TypeId`] for the widget type.
@@ -163,7 +163,7 @@ pub trait BoxStyleResolver: Send + Sync {
         &self,
         widget_type: TypeId,
         pseudos: StylePseudos,
-        classes: &[ClassId],
+        classes: &Arc<[ClassId]>,
     ) -> BoxPaintStyle;
 }
 

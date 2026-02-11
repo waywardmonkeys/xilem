@@ -3,6 +3,7 @@
 
 use std::any::Any;
 use std::collections::HashMap;
+use std::rc::Rc;
 use std::sync::Arc;
 
 use accesskit::{ActionRequest, NodeId, TreeUpdate};
@@ -113,7 +114,7 @@ pub(crate) struct RenderRootState {
     pub(crate) scroll_request_targets: Vec<(WidgetId, Rect)>,
 
     /// Optional embedder-provided resolver for pseudo/class driven style overrides.
-    pub(crate) box_style_resolver: Option<Arc<dyn BoxStyleResolver>>,
+    pub(crate) box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
 
     /// List of ancestors of the currently hovered widget.
     pub(crate) hovered_path: Vec<WidgetId>,
@@ -570,7 +571,7 @@ impl RenderRoot {
     /// properties.
     ///
     /// Setting or changing the resolver requests a full redraw.
-    pub fn set_box_style_resolver(&mut self, resolver: Option<Arc<dyn BoxStyleResolver>>) {
+    pub fn set_box_style_resolver(&mut self, resolver: Option<Rc<dyn BoxStyleResolver>>) {
         self.global_state.box_style_resolver = resolver;
         self.request_render_all();
     }

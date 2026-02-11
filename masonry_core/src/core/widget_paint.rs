@@ -53,11 +53,12 @@ impl<'a> PrePaintProps<'a> {
         let box_shadow = props.get::<BoxShadow>();
         let pseudos = ctx.style_pseudos();
         let classes = props.get::<Classes>();
+        let classes = classes.as_arc_slice();
         let style = ctx
             .global_state
             .box_style_resolver
             .as_deref()
-            .map(|r| r.resolve_box_paint(ctx.widget_type, pseudos, classes.as_slice()))
+            .map(|r| r.resolve_box_paint(ctx.widget_type, pseudos, &classes))
             .unwrap_or_default();
 
         let background = if props.contains::<Background>() {
