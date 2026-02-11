@@ -23,6 +23,7 @@ use crate::kurbo::{Affine, Axis, Insets, Point, Rect, Size, Vec2};
 use crate::layout::{LayoutSize, LenDef, SizeDef};
 use crate::passes::layout::{place_widget, resolve_length, resolve_size, run_layout_on};
 use crate::peniko::Color;
+use crate::style::StylePseudos;
 use crate::util::{TypeSet, get_debug_color};
 
 // Note - Most methods defined in this file revolve around `WidgetState` fields.
@@ -1351,6 +1352,19 @@ impl_context_method!(
         /// [`set_disabled`]: EventCtx::set_disabled
         pub fn is_disabled(&self) -> bool {
             self.widget_state.is_disabled
+        }
+
+        /// A compact set of style pseudoclasses for this widget.
+        ///
+        /// This is intended for use by embedders when building style selector inputs
+        /// and cache signatures.
+        pub fn style_pseudos(&self) -> StylePseudos {
+            StylePseudos::from_flags(
+                self.is_hovered(),
+                self.is_active(),
+                self.is_focus_target(),
+                self.is_disabled(),
+            )
         }
 
         /// Whether this widget is [stashed].
