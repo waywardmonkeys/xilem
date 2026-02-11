@@ -7,6 +7,7 @@ use smallvec::SmallVec;
 use vello::kurbo::Point;
 
 use crate::core::{FromDynWidget, PropertiesRef, Property, QueryCtx, Widget, WidgetId};
+use crate::style::{StyleSignature, TypeTag};
 
 /// A rich reference to a [`Widget`].
 ///
@@ -98,6 +99,16 @@ impl<'w, W: Widget + ?Sized> WidgetRef<'w, W> {
     /// Otherwise returns [`Property::static_default()`].
     pub fn get_prop<T: Property>(&self) -> &T {
         self.ctx.properties.get::<T>()
+    }
+
+    /// Returns a compact signature for style selection for this widget.
+    ///
+    /// This combines `type_tag`, this widget's current pseudoclasses, and its
+    /// [`Classes`](crate::properties::Classes) property.
+    ///
+    /// Intended for use by embedders when caching resolved style bundles.
+    pub fn style_signature(&self, type_tag: TypeTag) -> StyleSignature {
+        self.ctx.style_signature(type_tag, &self.ctx.properties)
     }
 
     /// Attempts to downcast to `WidgetRef` of concrete widget type.
