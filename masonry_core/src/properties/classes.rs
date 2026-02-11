@@ -70,6 +70,24 @@ impl Classes {
         &self.classes
     }
 
+    /// Returns `true` if this class set is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.classes.is_empty()
+    }
+
+    /// Returns the number of classes in this set.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.classes.len()
+    }
+
+    /// Returns `true` if this set contains `id`.
+    #[must_use]
+    pub fn contains(&self, id: ClassId) -> bool {
+        self.classes.binary_search(&id).is_ok()
+    }
+
     /// Returns the underlying class IDs as a shared slice.
     #[must_use]
     pub fn as_arc_slice(&self) -> Arc<[ClassId]> {
@@ -101,5 +119,9 @@ mod tests {
 
         let classes = Classes::from_ids([b, a, b, a]);
         assert_eq!(classes.as_slice(), &[a, b]);
+        assert_eq!(classes.len(), 2);
+        assert!(!classes.is_empty());
+        assert!(classes.contains(a));
+        assert!(!classes.contains(ClassId(3)));
     }
 }
