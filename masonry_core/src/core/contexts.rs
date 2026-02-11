@@ -23,7 +23,7 @@ use crate::kurbo::{Affine, Axis, Insets, Point, Rect, Size, Vec2};
 use crate::layout::{LayoutSize, LenDef, SizeDef};
 use crate::passes::layout::{place_widget, resolve_length, resolve_size, run_layout_on};
 use crate::peniko::Color;
-use crate::style::{StylePseudos, StyleSignature, TypeTag};
+use crate::style::{StylePseudos, StyleResolver, StyleSignature, TypeTag};
 use crate::util::{TypeSet, get_debug_color};
 
 // Note - Most methods defined in this file revolve around `WidgetState` fields.
@@ -1950,6 +1950,11 @@ impl PaintCtx<'_> {
     #[must_use]
     pub fn has_style_resolver(&self) -> bool {
         self.global_state.style_resolver.is_some()
+    }
+
+    /// Returns the current embedder-provided [`StyleResolver`], if one is installed.
+    pub fn style_resolver(&self) -> Option<&dyn StyleResolver> {
+        self.global_state.style_resolver.as_deref()
     }
 
     /// A compact set of style pseudoclasses for this widget, including widget-provided extras.

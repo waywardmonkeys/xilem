@@ -14,6 +14,7 @@ use std::any::TypeId;
 use std::sync::Arc;
 
 use crate::core::{PropertiesMut, PropertiesRef};
+use crate::peniko::color::{AlphaColor, Srgb};
 use crate::properties::{Background, BorderColor};
 use crate::properties::{ClassId, Classes};
 
@@ -205,6 +206,20 @@ pub trait StyleResolver {
         pseudos: StylePseudos,
         classes: &Arc<[ClassId]>,
     ) -> BoxPaintStyle<'_>;
+
+    /// Resolves pseudo/class-driven foreground color overrides for a widget.
+    ///
+    /// This is intended for small, icon-like visuals (such as a checkbox checkmark).
+    ///
+    /// Returning `None` indicates "no override".
+    fn resolve_foreground_color(
+        &self,
+        _widget_type: TypeId,
+        _pseudos: StylePseudos,
+        _classes: &Arc<[ClassId]>,
+    ) -> Option<StyleValue<'_, AlphaColor<Srgb>>> {
+        None
+    }
 }
 
 #[cfg(test)]
