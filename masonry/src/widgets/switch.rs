@@ -11,15 +11,13 @@ use vello::Scene;
 use crate::core::keyboard::Key;
 use crate::core::{
     AccessCtx, AccessEvent, ChildrenIds, EventCtx, HasProperty, LayoutCtx, MeasureCtx, PaintCtx,
-    PointerEvent, PropertiesMut, PropertiesRef, RegisterCtx, TextEvent, Update, UpdateCtx, Widget,
-    WidgetId, WidgetMut,
+    PointerEvent, PrePaintProps, PropertiesMut, PropertiesRef, RegisterCtx, TextEvent, Update,
+    UpdateCtx, Widget, WidgetId, WidgetMut,
 };
 use crate::kurbo::{Axis, Circle, Point, Rect, Size};
 use crate::layout::LenReq;
 use crate::properties::{
-    ActiveBackground, Background, BorderColor, BorderWidth, CornerRadius, DisabledBackground,
-    FocusedBorderColor, HoveredBorderColor, ThumbColor, ThumbRadius, ToggledBackground,
-    TrackThickness,
+    BorderWidth, CornerRadius, ThumbColor, ThumbRadius, ToggledBackground, TrackThickness,
 };
 use crate::util::{fill, stroke};
 
@@ -224,12 +222,12 @@ impl Widget for Switch {
         //       https://github.com/linebender/xilem/issues/1264
         let scale = 1.0;
 
-        let is_focused = ctx.is_focus_target();
         let is_pressed = ctx.is_active();
-        let is_hovered = ctx.is_hovered();
         let is_disabled = ctx.is_disabled();
 
         let size = ctx.border_box_size();
+
+        let p = PrePaintProps::fetch(ctx, props);
 
         let (track_width, track_height) = Self::track_dimensions(props, scale);
         let thumb_radius = props.get::<ThumbRadius>().0 * scale;
@@ -248,16 +246,14 @@ impl Widget for Switch {
         ) - ctx.border_box_translation();
 
         // Determine track background color
-        let track_bg = if is_disabled && let Some(db) = props.get_defined::<DisabledBackground>() {
-            &db.0
-        } else if is_pressed && let Some(ab) = props.get_defined::<ActiveBackground>() {
-            &ab.0
+        let track_bg = if is_disabled || is_pressed {
+            p.background.as_ref()
         } else if self.on
             && let Some(tb) = props.get_defined::<ToggledBackground>()
         {
             &tb.0
         } else {
-            props.get::<Background>()
+            p.background.as_ref()
         };
 
         // Paint track background
@@ -266,19 +262,14 @@ impl Widget for Switch {
         let brush = track_bg.get_peniko_brush_for_rect(track_rect);
         fill(scene, &track_rounded, &brush);
 
-        // Determine border color
-        let border_color = if is_focused && let Some(fb) = props.get_defined::<FocusedBorderColor>()
-        {
-            &fb.0
-        } else if is_hovered && let Some(hb) = props.get_defined::<HoveredBorderColor>() {
-            &hb.0
-        } else {
-            props.get::<BorderColor>()
-        };
-
         // Paint track border
         if border_width > 0.0 {
-            stroke(scene, &track_rounded, border_color.color, border_width);
+            stroke(
+                scene,
+                &track_rounded,
+                p.border_color.as_ref().color,
+                border_width,
+            );
         }
 
         // Calculate thumb position (centered vertically, left/right based on state)

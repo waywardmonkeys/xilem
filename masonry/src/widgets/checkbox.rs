@@ -304,28 +304,23 @@ impl Widget for Checkbox {
         //       https://github.com/linebender/xilem/issues/1264
         let scale = 1.0;
 
-        let is_focused = ctx.is_focus_target();
-        let is_hovered = ctx.is_hovered();
-
         let check_side = theme::BASIC_WIDGET_HEIGHT.dp(scale);
         let check_size = Size::new(check_side, check_side);
+
+        let p = PrePaintProps::fetch(ctx, props);
 
         let border_width = props.get::<BorderWidth>();
         let border_radius = props.get::<CornerRadius>();
 
         let border_rect = border_width.border_rect(check_size.to_rect(), border_radius);
 
-        let border_color = if is_focused && let Some(fb) = props.get_defined::<FocusedBorderColor>()
-        {
-            &fb.0
-        } else if is_hovered && let Some(hb) = props.get_defined::<HoveredBorderColor>() {
-            &hb.0
-        } else {
-            props.get::<BorderColor>()
-        };
-
         // Paint the checkbox box border
-        stroke(scene, &border_rect, border_color.color, border_width.width);
+        stroke(
+            scene,
+            &border_rect,
+            p.border_color.as_ref().color,
+            border_width.width,
+        );
 
         // Paint the checkmark if checked
         if self.checked {

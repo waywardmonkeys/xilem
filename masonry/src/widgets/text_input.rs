@@ -287,7 +287,10 @@ impl Widget for TextInput {
         let mut p = PrePaintProps::fetch(ctx, props);
 
         // We want to show a focus border if our child TextArea is focused
-        if ctx.has_focus_target()
+        //
+        // In the stylesheet theme, this is expected to be handled via `:focus-within`.
+        if !ctx.has_box_style_resolver()
+            && ctx.has_focus_target()
             && let Some(fb) = props.get_defined::<FocusedBorderColor>()
         {
             p.border_color = masonry_core::core::Resolved::Borrowed(&fb.0);
