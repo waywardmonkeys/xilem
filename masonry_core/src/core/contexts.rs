@@ -1366,6 +1366,7 @@ impl_context_method!(
                 self.is_focus_target(),
                 self.is_disabled(),
             )
+            .with_focus_within(self.has_focus_target())
         }
 
         /// A compact signature for style selection for this widget.

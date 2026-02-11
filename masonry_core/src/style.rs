@@ -42,10 +42,14 @@ impl StylePseudos {
     pub const ACTIVE: Self = Self { bits: 1 << 1 };
     /// The element is the focus target.
     pub const FOCUS: Self = Self { bits: 1 << 2 };
+    /// The element is focused, or contains the focus target.
+    ///
+    /// This matches CSS `:focus-within`.
+    pub const FOCUS_WITHIN: Self = Self { bits: 1 << 3 };
     /// The element is disabled.
     ///
     /// Embedders should generally treat disabled as inherited, matching Masonry's behavior.
-    pub const DISABLED: Self = Self { bits: 1 << 3 };
+    pub const DISABLED: Self = Self { bits: 1 << 4 };
 
     /// Creates a pseudo set from common Masonry interaction flags.
     #[must_use]
@@ -64,6 +68,17 @@ impl StylePseudos {
             bits |= Self::DISABLED.bits;
         }
         Self { bits }
+    }
+
+    /// Returns a copy of this set with `:focus-within` set or cleared.
+    #[must_use]
+    pub fn with_focus_within(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.bits |= Self::FOCUS_WITHIN.bits;
+        } else {
+            self.bits &= !Self::FOCUS_WITHIN.bits;
+        }
+        self
     }
 
     /// Returns `true` if this set contains `pseudo`.
