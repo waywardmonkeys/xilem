@@ -13,8 +13,8 @@ use masonry::layout::Length;
 use masonry::peniko::color::AlphaColor;
 use masonry::properties::Padding;
 use masonry::properties::types::CrossAxisAlignment;
-use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set_stylesheet;
+use masonry::theme::default_style_resolver;
 use masonry::widgets::{Button, ButtonPress, Flex, Label, Portal, TextAction, TextArea, TextInput};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
 use masonry_winit::winit::window::Window;
@@ -124,7 +124,7 @@ fn main() {
         ],
         driver,
         default_property_set_stylesheet(),
-        Some(default_box_style_resolver()),
+        Some(default_style_resolver()),
     )
     .unwrap();
 }

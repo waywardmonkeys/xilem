@@ -25,8 +25,8 @@ use masonry::properties::types::CrossAxisAlignment;
 use masonry::properties::{
     ActiveBackground, Background, BorderColor, BorderWidth, Gap, HoveredBorderColor, Padding,
 };
-use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set_stylesheet;
+use masonry::theme::default_style_resolver;
 use masonry::widgets::{Button, ButtonPress, Flex, Grid, GridParams, Label};
 use masonry_winit::app::{AppDriver, DriverCtx, NewWindow, WindowId};
 use masonry_winit::winit::window::Window;
@@ -311,7 +311,7 @@ fn main() {
         )],
         calc_state,
         default_property_set_stylesheet(),
-        Some(default_box_style_resolver()),
+        Some(default_style_resolver()),
     )
     .unwrap();
 }

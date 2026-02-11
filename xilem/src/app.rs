@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use masonry::core::DefaultProperties;
 use masonry::peniko::Blob;
-use masonry::theme::default_box_style_resolver;
 use masonry::theme::default_property_set_stylesheet;
+use masonry::theme::default_style_resolver;
 use masonry_winit::app::{EventLoopBuilder, MasonryUserEvent, NewWindow, WindowId};
 use tokio::runtime::Runtime as TokioRuntime;
 use winit::error::EventLoopError;
@@ -181,7 +181,7 @@ where
             windows,
             driver,
             default_properties,
-            Some(default_box_style_resolver()),
+            Some(default_style_resolver()),
         )
     }
 

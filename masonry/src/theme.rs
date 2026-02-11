@@ -254,12 +254,12 @@ pub fn default_property_set() -> DefaultProperties {
     default_property_set_legacy()
 }
 
-/// Creates the default Understory-backed box style resolver.
+/// Creates the default Understory-backed style resolver.
 ///
 /// This resolver is optional and must be installed on a `RenderRoot` via
 /// [`RenderRoot::set_style_resolver`](masonry_core::app::RenderRoot::set_style_resolver).
 #[must_use]
-pub fn default_box_style_resolver() -> Rc<dyn StyleResolver> {
+pub fn default_style_resolver() -> Rc<dyn StyleResolver> {
     Rc::new(crate::understory::UnderstoryBoxStyleResolver::new_default())
 }
 
