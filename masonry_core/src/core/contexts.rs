@@ -1940,4 +1940,12 @@ impl PaintCtx<'_> {
     pub fn debug_color(&self) -> Color {
         get_debug_color(self.widget_id().to_raw())
     }
+
+    /// Returns `true` if the embedder has installed a box style resolver.
+    ///
+    /// When installed, Masonry Core consults this resolver during `pre_paint` to resolve
+    /// pseudo/class-driven values.
+    pub fn has_box_style_resolver(&self) -> bool {
+        self.global_state.box_style_resolver.is_some()
+    }
 }
