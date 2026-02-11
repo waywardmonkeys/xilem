@@ -17,7 +17,7 @@ use masonry_core::core::{
 };
 use masonry_core::kurbo::Affine;
 use masonry_core::peniko::Color;
-use masonry_core::style::BoxStyleResolver;
+use masonry_core::style::StyleResolver;
 use masonry_core::util::Instant;
 use masonry_core::vello::{
     AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene, wgpu,
@@ -146,7 +146,7 @@ impl Window {
         base_color: Color,
         size: PhysicalSize<u32>,
         scale_factor: f64,
-        box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+        box_style_resolver: Option<Rc<dyn StyleResolver>>,
     ) -> Self {
         let mut render_root = RenderRoot::new(
             root_widget,
@@ -222,7 +222,7 @@ pub struct MasonryState<'a> {
 
     signal_sender: Sender<(WindowId, RenderRootSignal)>,
     default_properties: Arc<DefaultProperties>,
-    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+    box_style_resolver: Option<Rc<dyn StyleResolver>>,
     pub(crate) exit: bool,
     /// Windows that are scheduled to be created in the next resumed event.
     new_windows: Vec<NewWindow>,
@@ -294,7 +294,7 @@ pub fn run_with_box_style_resolver(
     new_windows: Vec<NewWindow>,
     app_driver: impl AppDriver + 'static,
     default_properties: DefaultProperties,
-    box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+    box_style_resolver: Option<Rc<dyn StyleResolver>>,
 ) -> Result<(), EventLoopError> {
     // If no tracing subscriber has been set before, we set our own. If one has
     // already been set, we get an error which we swallow.
@@ -313,6 +313,26 @@ pub fn run_with_box_style_resolver(
     };
 
     event_loop.run_app(&mut main_state)
+}
+
+/// Runs the app with the provided event loop to completion, with an optional style resolver.
+///
+/// This is the preferred entry point when installing a style resolver.
+pub fn run_with_style_resolver(
+    // This is passed in mostly to allow configuring the Android app
+    event_loop: EventLoop,
+    new_windows: Vec<NewWindow>,
+    app_driver: impl AppDriver + 'static,
+    default_properties: DefaultProperties,
+    style_resolver: Option<Rc<dyn StyleResolver>>,
+) -> Result<(), EventLoopError> {
+    run_with_box_style_resolver(
+        event_loop,
+        new_windows,
+        app_driver,
+        default_properties,
+        style_resolver,
+    )
 }
 
 impl ApplicationHandler<MasonryUserEvent> for MainState<'_> {
@@ -398,7 +418,7 @@ impl MasonryState<'_> {
         event_loop_proxy: EventLoopProxy,
         new_windows: Vec<NewWindow>,
         default_properties: DefaultProperties,
-        box_style_resolver: Option<Rc<dyn BoxStyleResolver>>,
+        box_style_resolver: Option<Rc<dyn StyleResolver>>,
     ) -> Self {
         let render_cx = RenderContext::new();
 
