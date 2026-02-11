@@ -155,6 +155,18 @@ impl UnderstoryBoxStyleResolver {
             .build();
 
         // Widget-specific overrides where the values differ from the shared pseudo styles.
+        let checkbox_toggled_bg = StyleBuilder::new()
+            .set(
+                resolver.background,
+                Background::Color(crate::theme::ACCENT_COLOR),
+            )
+            .set(
+                resolver.border_color,
+                BorderColor {
+                    color: crate::theme::ACCENT_COLOR,
+                },
+            )
+            .build();
         let switch_toggled_bg = StyleBuilder::new()
             .set(
                 resolver.background,
@@ -179,6 +191,14 @@ impl UnderstoryBoxStyleResolver {
             //
             // Order matters when multiple selectors apply; later rules win for equal specificity.
             // This is arranged so `:active` overrides `:toggled`, and `:disabled` overrides both.
+            .rule(
+                Selector {
+                    type_tag: Some(CHECKBOX),
+                    required_classes: IdSet::from_ids([PRESSABLE]),
+                    required_pseudos: IdSet::from_ids([TOGGLED]),
+                },
+                checkbox_toggled_bg,
+            )
             .rule(
                 Selector {
                     type_tag: Some(SWITCH),
@@ -430,6 +450,28 @@ mod tests {
             Some(masonry_core::properties::Background::Color(
                 crate::theme::ACCENT_COLOR
             ))
+        );
+    }
+
+    #[test]
+    fn checkbox_toggled_background_applies() {
+        let resolver = UnderstoryBoxStyleResolver::new_default();
+        let classes: Arc<[ClassId]> = Arc::from([crate::theme::CLASS_PRESSABLE]);
+        let pseudos = StylePseudos::TOGGLED;
+
+        let style =
+            resolver.resolve_box_paint(TypeId::of::<crate::widgets::Checkbox>(), pseudos, &classes);
+        assert_eq!(
+            style.background.map(|v| v.as_ref().clone()),
+            Some(masonry_core::properties::Background::Color(
+                crate::theme::ACCENT_COLOR
+            ))
+        );
+        assert_eq!(
+            style.border_color.map(|v| *v.as_ref()),
+            Some(masonry_core::properties::BorderColor {
+                color: crate::theme::ACCENT_COLOR
+            })
         );
     }
 }
