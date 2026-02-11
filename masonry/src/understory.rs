@@ -28,6 +28,10 @@ pub struct UnderstoryBoxStyleResolver {
     cascade: StyleCascade,
     type_tags: Mutex<TypeTagState>,
     class_cache: Mutex<HashMap<Arc<[ClassId]>, Arc<[understory_style::ClassId]>>>,
+    // TODO: This cache is currently unbounded and has no invalidation story.
+    // Before making styles/theme rules dynamic, add:
+    // - a size cap + eviction strategy, and/or
+    // - an explicit epoch in the cache key so callers can invalidate on theme changes.
     computed_box_paint_cache: Mutex<HashMap<BoxPaintCacheKey, CachedBoxPaintStyle>>,
 }
 
