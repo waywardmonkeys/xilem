@@ -6,6 +6,7 @@ use std::any::TypeId;
 use crate::core::{FromDynWidget, MutateCtx, Property, Widget, WidgetId};
 use crate::kurbo::Affine;
 use crate::properties::{Classes, core_property_changed};
+use crate::style::{StyleSignature, TypeTag};
 
 /// A rich mutable reference to a [`Widget`].
 ///
@@ -128,6 +129,16 @@ impl<W: Widget + ?Sized> WidgetMut<'_, W> {
     /// This is a convenience wrapper around [`remove_prop`](Self::remove_prop).
     pub fn clear_classes(&mut self) -> Option<Classes> {
         self.remove_prop::<Classes>()
+    }
+
+    /// Returns a compact signature for style selection for this widget.
+    ///
+    /// This combines `type_tag`, this widget's current pseudoclasses, and its
+    /// [`Classes`](crate::properties::Classes) property.
+    ///
+    /// Intended for use by embedders when caching resolved style bundles.
+    pub fn style_signature(&self, type_tag: TypeTag) -> StyleSignature {
+        StyleSignature::from_props_mut(type_tag, self.ctx.style_pseudos(), &self.ctx.properties)
     }
 
     /// Sets the local transform of this widget.

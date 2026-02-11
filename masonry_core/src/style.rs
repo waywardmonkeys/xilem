@@ -120,6 +120,19 @@ impl StyleSignature {
     pub fn from_props(type_tag: TypeTag, pseudos: StylePseudos, props: &PropertiesRef<'_>) -> Self {
         Self::new(type_tag, pseudos, props.get::<Classes>())
     }
+
+    /// Creates a signature using [`Classes`] from the given widget properties.
+    ///
+    /// This reads the [`Classes`] property from `props`, which will fall back to any default
+    /// `Classes` and then to the static default.
+    #[must_use]
+    pub fn from_props_mut(
+        type_tag: TypeTag,
+        pseudos: StylePseudos,
+        props: &crate::core::PropertiesMut<'_>,
+    ) -> Self {
+        Self::new(type_tag, pseudos, props.get::<Classes>())
+    }
 }
 
 #[cfg(test)]
