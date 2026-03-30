@@ -113,7 +113,9 @@
 //!
 //! The following crate [feature flags](https://doc.rust-lang.org/cargo/reference/features.html#dependency-features) are available:
 //!
-//! * `default`: Enables the default features of [Masonry][masonry] and [Masonry Winit][masonry_winit].
+//! * `default`: Enables the default features of [Masonry][masonry] and the `imaging_vello` backend for [Masonry Winit][masonry_winit].
+//! * `imaging_vello`: Enables the `imaging_vello` backend for `masonry_winit`.
+//! * `imaging_vello_hybrid`: Switches `masonry_winit` to the `imaging_vello_hybrid` backend.
 //!
 //! [accesskit_docs]: masonry::accesskit
 //! [Parley]: masonry::parley

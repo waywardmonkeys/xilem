@@ -71,8 +71,20 @@
 //!
 //! (See the Masonry documentation for more detailed examples.)
 //!
+//! # Feature flags
+//!
+//! The following crate [feature flags](https://doc.rust-lang.org/cargo/reference/features.html#dependency-features) are available:
+//!
+//! - `default`: Enables the `imaging_vello` backend.
+//! - `imaging_vello`: Translate Masonry's retained `imaging` scenes into `vello::Scene`.
+//! - `imaging_vello_hybrid`: Translate Masonry's retained `imaging` scenes into `vello_hybrid::Scene`.
+//!   Disable default features to select it on its own.
+//! - `tracy`: Enables creating output for the [Tracy](https://github.com/wolfpld/tracy) profiler
+//!   using [`tracing-tracy`][tracing_tracy].
+//!
 //! [Masonry's documentation]: https://docs.rs/masonry
 //! [Masonry]: https://crates.io/crates/masonry
+//! [tracing_tracy]: https://crates.io/crates/tracing-tracy
 
 // LINEBENDER LINT SET - lib.rs - v3
 // See https://linebender.org/wiki/canonical-lints/
@@ -85,10 +97,27 @@
 // END LINEBENDER LINT SET
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![expect(missing_debug_implementations, reason = "Deferred: Noisy")]
+#![cfg_attr(
+    all(
+        feature = "tracy",
+        feature = "imaging_vello_hybrid",
+        not(feature = "imaging_vello")
+    ),
+    expect(
+        unused_crate_dependencies,
+        reason = "wgpu-profiler is only used by the Vello backend"
+    )
+)]
+
+#[cfg(not(any(feature = "imaging_vello", feature = "imaging_vello_hybrid")))]
+compile_error!(
+    "masonry_winit requires either the `imaging_vello` or `imaging_vello_hybrid` feature"
+);
 
 mod app_driver;
 mod convert_winit_event;
 mod event_loop_runner;
+mod render_backend;
 mod vello_util;
 
 pub use winit;

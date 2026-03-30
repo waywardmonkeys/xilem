@@ -16,17 +16,21 @@ default-target = "x86_64-unknown-linux-gnu"
 targets = []
 
 [features]
-default = []
+default = ["imaging_vello"]
+imaging_vello = ["dep:imaging_vello"]
+imaging_vello_hybrid = ["dep:imaging_vello_hybrid", "dep:vello_hybrid"]
 
 [dependencies]
 accesskit_consumer.workspace = true
 futures-intrusive = "0.5.0"
 image = { workspace = true, features = ["png"] }
-imaging_vello.workspace = true
+imaging_vello = { workspace = true, optional = true }
+imaging_vello_hybrid = { workspace = true, optional = true }
 masonry_core.workspace = true
 oxipng = { version = "9.1.5", default-features = false }
 pollster = "0.4.0"
 tracing = { workspace = true, features = ["default"] }
+vello_hybrid = { workspace = true, optional = true }
 
 [dev-dependencies]
 assert_matches = "1.5.0"

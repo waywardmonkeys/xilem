@@ -32,7 +32,9 @@ debuggable = true
 name = "android.permission.INTERNET"
 
 [features]
-default = ["masonry/default", "masonry_winit/default"]
+default = ["masonry/default", "imaging_vello"]
+imaging_vello = ["masonry/imaging_vello", "masonry_winit/imaging_vello"]
+imaging_vello_hybrid = ["masonry/imaging_vello_hybrid", "masonry_winit/imaging_vello_hybrid"]
 
 [dependencies]
 xilem_core.workspace = true

@@ -50,9 +50,20 @@
 //!
 //! - To test applications: see the tests in Masonry's examples.
 //! - To test widgets: see the `tests` module in each widget in Masonry.
+//!
+//! # Feature flags
+//!
+//! - `default`: Enables the default Vello screenshot backend.
+//! - `imaging_vello`: Use the Vello screenshot backend.
+//! - `imaging_vello_hybrid`: Use the Vello Hybrid screenshot backend.
 
 // TODO: Remove any items listed as "Deferred"
 #![expect(missing_debug_implementations, reason = "Deferred: Noisy")]
+
+#[cfg(not(any(feature = "imaging_vello", feature = "imaging_vello_hybrid")))]
+compile_error!(
+    "masonry_testing requires one render backend; enable either `imaging_vello` or `imaging_vello_hybrid`"
+);
 
 mod assert_any;
 mod assert_debug_panics;
@@ -60,6 +71,7 @@ mod debug_name;
 mod harness;
 mod modular_widget;
 mod recorder_widget;
+mod render_backend;
 mod screenshots;
 mod wrapper_widget;
 

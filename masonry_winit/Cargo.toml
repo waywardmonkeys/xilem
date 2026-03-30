@@ -18,7 +18,10 @@ targets = []
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 
 [features]
-default = []
+default = ["imaging_vello"]
+# The default Vello backend wins if both backend features are enabled.
+imaging_vello = ["dep:imaging_vello"]
+imaging_vello_hybrid = ["dep:imaging_vello_hybrid"]
 # Enables tracing using tracy if the default Masonry tracing is used.
 # https://github.com/wolfpld/tracy can be connected to when this feature is enabled.
 tracy = ["dep:tracing-tracy", "dep:wgpu-profiler", "wgpu-profiler/tracy", "masonry_core/tracy"]
@@ -31,7 +34,8 @@ tracing-tracy = { version = "0.11.4", optional = true }
 ui-events-winit.workspace = true
 pollster = "0.4.0"
 accesskit_winit.workspace = true
-imaging_vello.workspace = true
+imaging_vello = { workspace = true, optional = true }
+imaging_vello_hybrid = { workspace = true, optional = true }
 wgpu-profiler = { optional = true, version = "0.26.0", default-features = false }
 copypasta = "0.10.2"
 

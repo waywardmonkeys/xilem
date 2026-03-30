@@ -89,8 +89,20 @@ fn main() {
 
 (See the Masonry documentation for more detailed examples.)
 
+## Feature flags
+
+The following crate [feature flags](https://doc.rust-lang.org/cargo/reference/features.html#dependency-features) are available:
+
+- `default`: Enables the `imaging_vello` backend.
+- `imaging_vello`: Translate Masonry's retained `imaging` scenes into `vello::Scene`.
+- `imaging_vello_hybrid`: Translate Masonry's retained `imaging` scenes into `vello_hybrid::Scene`.
+  Disable default features to select it on its own.
+- `tracy`: Enables creating output for the [Tracy](https://github.com/wolfpld/tracy) profiler
+  using [`tracing-tracy`][tracing_tracy].
+
 [Masonry's documentation]: https://docs.rs/masonry
 [Masonry]: https://crates.io/crates/masonry
+[tracing_tracy]: https://crates.io/crates/tracing-tracy
 
 <!-- cargo-rdme end -->
 

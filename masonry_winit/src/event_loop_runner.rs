@@ -9,18 +9,14 @@ use std::sync::{Arc, mpsc};
 use accesskit_winit::Adapter;
 use copypasta::nop_clipboard::NopClipboardContext;
 use copypasta::{ClipboardContext, ClipboardProvider};
-use imaging_vello::VelloSceneSink;
 use masonry_core::app::{RenderRoot, RenderRootOptions, RenderRootSignal, WindowSizePolicy};
 use masonry_core::core::keyboard::{Key, KeyState};
 use masonry_core::core::{
     DefaultProperties, ErasedAction, NewWidget, TextEvent, Widget, WindowEvent,
 };
-use masonry_core::kurbo::{Affine, Rect};
 use masonry_core::peniko::Color;
 use masonry_core::util::Instant;
-use masonry_core::vello::{
-    AaConfig, AaSupport, RenderParams, Renderer, RendererOptions, Scene, wgpu,
-};
+use masonry_core::vello::wgpu;
 use tracing::{info, info_span, trace};
 use ui_events_winit::{WindowEventReducer, WindowEventTranslation};
 use winit::application::ApplicationHandler;
@@ -35,6 +31,7 @@ use crate::app::{
     winit_ime_to_masonry,
 };
 use crate::app_driver::WindowId;
+use crate::render_backend::{self, Renderer, Scene};
 use crate::vello_util::{RenderContext, RenderSurface};
 
 /// The custom event type that we inject into winit's [`EventLoop`](winit::event_loop::EventLoop).
@@ -196,6 +193,7 @@ pub struct MasonryState<'a> {
     is_suspended: bool,
     render_cx: RenderContext,
     renderer: Option<Renderer>,
+    #[cfg(feature = "imaging_vello")]
     image_overrides: HashMap<u64, ImageOverrideState>,
     // TODO: Winit doesn't seem to let us create these proxies from within the loop
     // The reasons for this are unclear
@@ -225,13 +223,8 @@ pub struct MasonryState<'a> {
     need_first_frame: Vec<HandleId>,
 }
 
-#[derive(Debug)]
-struct ImageOverrideState {
-    image: masonry_core::peniko::ImageData,
-    texture: wgpu::Texture,
-    applied: bool,
-    prev: Option<wgpu::TexelCopyTextureInfoBase<wgpu::Texture>>,
-}
+#[cfg(feature = "imaging_vello")]
+type ImageOverrideState = render_backend::ImageOverrideState;
 
 // TODO - Merge into MasonryState?
 struct MainState<'a> {
@@ -367,6 +360,11 @@ impl MasonryState<'_> {
         new_windows: Vec<NewWindow>,
         default_properties: DefaultProperties,
     ) -> Self {
+        tracing::debug!(
+            backend = render_backend::backend_name(),
+            "selected Masonry Winit render backend"
+        );
+
         let render_cx = RenderContext::new();
 
         let (signal_sender, signal_receiver) = mpsc::channel::<(WindowId, RenderRootSignal)>();
@@ -385,6 +383,7 @@ impl MasonryState<'_> {
             is_suspended: true,
             render_cx,
             renderer: None,
+            #[cfg(feature = "imaging_vello")]
             image_overrides: HashMap::new(),
             event_loop_proxy,
             #[cfg(feature = "tracy")]
@@ -571,66 +570,23 @@ impl MasonryState<'_> {
         window.handle.set_ime_allowed(false);
     }
 
+    #[cfg(feature = "imaging_vello")]
     pub(crate) fn set_image_override(
         &mut self,
         image: masonry_core::peniko::ImageData,
         texture: wgpu::Texture,
     ) {
-        let image_id = image.data.id();
-
-        if let Some(existing) = self.image_overrides.get_mut(&image_id) {
-            existing.texture = texture;
-            if existing.applied {
-                if let Some(renderer) = &mut self.renderer {
-                    renderer.override_image(
-                        &existing.image,
-                        Some(wgpu::TexelCopyTextureInfoBase {
-                            texture: existing.texture.clone(),
-                            mip_level: 0,
-                            origin: wgpu::Origin3d::ZERO,
-                            aspect: wgpu::TextureAspect::All,
-                        }),
-                    );
-                } else {
-                    existing.applied = false;
-                }
-            }
-            return;
-        }
-
-        let mut state = ImageOverrideState {
+        render_backend::set_image_override(
+            &mut self.renderer,
+            &mut self.image_overrides,
             image,
             texture,
-            applied: false,
-            prev: None,
-        };
-
-        if let Some(renderer) = &mut self.renderer {
-            state.prev = renderer.override_image(
-                &state.image,
-                Some(wgpu::TexelCopyTextureInfoBase {
-                    texture: state.texture.clone(),
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                }),
-            );
-            state.applied = true;
-        }
-
-        self.image_overrides.insert(image_id, state);
+        );
     }
 
+    #[cfg(feature = "imaging_vello")]
     pub(crate) fn clear_image_override(&mut self, image: &masonry_core::peniko::ImageData) {
-        let image_id = image.data.id();
-        let Some(state) = self.image_overrides.remove(&image_id) else {
-            return;
-        };
-        if state.applied
-            && let Some(renderer) = &mut self.renderer
-        {
-            renderer.override_image(&state.image, state.prev);
-        }
+        render_backend::clear_image_override(&mut self.renderer, &mut self.image_overrides, image);
     }
 
     // --- MARK: REDRAW
@@ -702,20 +658,25 @@ impl MasonryState<'_> {
         }
 
         let (paint_result, tree_update) = window.render_root.redraw();
-        let mut scene = Scene::new();
-        let bounds = Rect::new(0.0, 0.0, f64::from(size.width), f64::from(size.height));
-        let mut sink = VelloSceneSink::new(&mut scene, bounds);
-        paint_result.replay_into(&mut sink);
-        if let Err(err) = sink.finish() {
-            tracing::error!("Couldn't translate retained imaging scene for Vello: {err:?}");
-            return;
-        }
+        let scene = match render_backend::build_scene(
+            &paint_result,
+            size,
+            window.handle.scale_factor(),
+            window.base_color,
+        ) {
+            Ok(scene) => scene,
+            Err(err) => {
+                tracing::error!("{err}");
+                return;
+            }
+        };
         Self::render(
             surface,
             window,
             scene,
             &self.render_cx,
             &mut self.renderer,
+            #[cfg(feature = "imaging_vello")]
             &mut self.image_overrides,
         );
         #[cfg(feature = "tracy")]
@@ -732,33 +693,12 @@ impl MasonryState<'_> {
         scene: Scene,
         render_cx: &RenderContext,
         renderer: &mut Option<Renderer>,
-        image_overrides: &mut HashMap<u64, ImageOverrideState>,
+        #[cfg(feature = "imaging_vello")] image_overrides: &mut HashMap<u64, ImageOverrideState>,
     ) {
         let size = window.render_root.size();
-        let scale_factor = window.handle.scale_factor();
-
-        let transformed_scene = if scale_factor == 1.0 {
-            None
-        } else {
-            let mut new_scene = Scene::new();
-            new_scene.append(&scene, Some(Affine::scale(scale_factor)));
-            Some(new_scene)
-        };
-        let scene_ref = transformed_scene.as_ref().unwrap_or(&scene);
-
         let dev_id = surface.dev_id;
         let device = &render_cx.devices[dev_id].device;
         let queue = &render_cx.devices[dev_id].queue;
-        let renderer_options = RendererOptions {
-            antialiasing_support: AaSupport::area_only(),
-            ..Default::default()
-        };
-        let render_params = RenderParams {
-            base_color: window.base_color,
-            width: size.width,
-            height: size.height,
-            antialiasing_method: AaConfig::Area,
-        };
 
         let surface_texture = match surface.surface.get_current_texture() {
             Ok(texture) => texture,
@@ -784,56 +724,33 @@ impl MasonryState<'_> {
             }
         };
 
-        let _render_span = tracing::info_span!("Rendering using Vello").entered();
-        let renderer = renderer.get_or_insert_with(|| {
-            #[cfg_attr(not(feature = "tracy"), expect(unused_mut, reason = "cfg"))]
-            let mut renderer = Renderer::new(device, renderer_options).unwrap();
-            #[cfg(feature = "tracy")]
-            {
-                let new_profiler = wgpu_profiler::GpuProfiler::new_with_tracy_client(
-                    wgpu_profiler::GpuProfilerSettings::default(),
-                    // We don't have access to the adapter until we get  https://github.com/linebender/vello/pull/634
-                    // Luckily, this `backend` is only used for visual display in the profiling, so we can just guess here
-                    wgpu::Backend::Vulkan,
-                    device,
-                    queue,
-                )
-                .unwrap_or(renderer.profiler);
-                renderer.profiler = new_profiler;
-            }
-            renderer
-        });
-
-        // Apply any persistent image overrides.
-        //
-        // `Renderer` is shared across windows, so these overrides are global to the current
-        // renderer/device. We apply them once (lazily, when a renderer exists) and only restore
-        // when explicitly cleared.
-        for ovr in image_overrides.values_mut() {
-            if ovr.applied {
-                continue;
-            }
-            ovr.prev = renderer.override_image(
-                &ovr.image,
-                Some(wgpu::TexelCopyTextureInfoBase {
-                    texture: ovr.texture.clone(),
-                    mip_level: 0,
-                    origin: wgpu::Origin3d::ZERO,
-                    aspect: wgpu::TextureAspect::All,
-                }),
-            );
-            ovr.applied = true;
-        }
-
-        renderer
-            .render_to_texture(
-                device,
-                queue,
-                scene_ref,
-                &surface.target_view,
-                &render_params,
-            )
-            .expect("failed to render to surface");
+        let _render_span =
+            tracing::info_span!("render", backend = render_backend::backend_label()).entered();
+        #[cfg(feature = "imaging_vello")]
+        render_backend::render_to_texture(
+            renderer,
+            image_overrides,
+            device,
+            queue,
+            surface.format,
+            &surface.target_texture,
+            &surface.target_view,
+            &scene,
+            window.base_color,
+            size,
+        );
+        #[cfg(all(feature = "imaging_vello_hybrid", not(feature = "imaging_vello")))]
+        render_backend::render_to_texture(
+            renderer,
+            device,
+            queue,
+            surface.format,
+            &surface.target_texture,
+            &surface.target_view,
+            &scene,
+            window.base_color,
+            size,
+        );
 
         // Copy the new surface content to the surface.
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {

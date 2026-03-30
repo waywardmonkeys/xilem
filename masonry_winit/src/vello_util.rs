@@ -314,10 +314,10 @@ impl RenderContext {
     }
 }
 
-/// Vello uses a compute shader to render to the provided texture, which means that it can't bind the surface
-/// texture in most cases.
+/// Masonry renders into an intermediate texture and then blits to the swapchain surface.
 ///
-/// Because of this, we need to create an "intermediate" texture which we render to, and then blit to the surface.
+/// The Vello backend needs storage usage for its compute pipeline, while the hybrid backend needs
+/// render-attachment usage for its render passes.
 fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, TextureView) {
     let target_texture = device.create_texture(&wgpu::TextureDescriptor {
         label: None,
@@ -329,7 +329,10 @@ fn create_targets(width: u32, height: u32, device: &Device) -> (Texture, Texture
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        usage: TextureUsages::STORAGE_BINDING | TextureUsages::TEXTURE_BINDING,
+        usage: TextureUsages::STORAGE_BINDING
+            | TextureUsages::TEXTURE_BINDING
+            | TextureUsages::COPY_DST
+            | TextureUsages::RENDER_ATTACHMENT,
         format: TextureFormat::Rgba8Unorm,
         view_formats: &[],
     });
